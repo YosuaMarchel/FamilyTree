@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="description" content="Silsilah keluarga interaktif — jelajahi pohon keluarga dan lihat detail setiap anggota.">
+  <meta name="color-scheme" content="light dark">
+  <title>Pohon Keluarga — Silsilah Interaktif</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════════ -->
+  <header class="app-header" role="banner">
+    <div class="header-main">
+      <span class="header-crest" aria-hidden="true">🌳</span>
+      <div class="header-titles">
+        <h1 id="family-name">Pohon Keluarga</h1>
+        <p class="header-tagline" id="family-tagline"></p>
+      </div>
+    </div>
+
+    <div class="header-tools">
+      <div class="search-wrap">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input type="search" class="search-input" id="search-input"
+               placeholder="Cari nama anggota…  ( / )" autocomplete="off"
+               aria-label="Cari anggota keluarga">
+        <button class="search-clear" id="btn-search-clear" type="button" aria-label="Hapus pencarian" hidden>&times;</button>
+      </div>
+      <button class="icon-btn" id="btn-theme" type="button" aria-label="Ganti tema terang/gelap" title="Ganti tema">🌙</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════
+       STATS STRIP
+       ═══════════════════════════════════════════════ -->
+  <div class="stats-strip" id="stats-strip" aria-label="Ringkasan keluarga"></div>
+
+  <!-- ═══════════════════════════════════════════════
+       TREE CANVAS
+       ═══════════════════════════════════════════════ -->
+  <main class="tree-viewport" id="tree-viewport" aria-label="Diagram pohon keluarga">
+    <div class="tree-stage" id="tree-stage">
+      <svg class="tree-lines" id="tree-lines" aria-hidden="true" focusable="false"></svg>
+      <div class="tree-nodes" id="tree-nodes"></div>
+    </div>
+
+    <p class="search-empty" id="search-empty" role="status" hidden>Tidak ada anggota yang cocok.</p>
+
+    <div class="zoom-controls" role="group" aria-label="Kontrol tampilan">
+      <button class="zoom-btn" id="btn-zoom-in" type="button" aria-label="Perbesar" title="Perbesar">+</button>
+      <button class="zoom-btn" id="btn-zoom-out" type="button" aria-label="Perkecil" title="Perkecil">&minus;</button>
+      <button class="zoom-btn" id="btn-zoom-fit" type="button" aria-label="Sesuaikan ke layar" title="Sesuaikan ke layar">⤢</button>
+    </div>
+
+    <p class="canvas-hint" id="canvas-hint">Geser untuk menjelajah &middot; scroll untuk zoom &middot; klik kartu untuk detail</p>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════
+       MODAL DETAIL ANGGOTA
+       ═══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="detail-overlay" hidden>
+    <div class="modal" id="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detail-name">
+      <button class="modal-back" id="btn-detail-back" type="button" aria-label="Kembali ke anggota sebelumnya" hidden>&larr;</button>
+      <button class="modal-close" id="btn-detail-close" type="button" aria-label="Tutup detail">&times;</button>
+
+      <div class="modal-hero">
+        <div class="modal-photo-ring" id="detail-photo-ring">
+          <img class="modal-photo" id="detail-photo" alt="">
+        </div>
+        <h2 class="modal-name" id="detail-name"></h2>
+        <p class="modal-nickname" id="detail-nickname"></p>
+        <div class="modal-badges" id="detail-badges"></div>
+      </div>
+
+      <div class="modal-body" id="detail-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <footer class="app-footer" role="contentinfo">
+    <span id="footer-text">Silsilah Keluarga</span>
+  </footer>
+
+  <!-- App modules (order matters: dependencies first) -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/relations.js"></script>
+  <script src="js/tree.js"></script>
+  <script src="js/detail.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
