@@ -14,6 +14,7 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 | Fitur | Keterangan |
 |---|---|
 | **CRUD lengkap** | Tambah, ubah, dan hapus anggota langsung dari halaman — tanpa menyentuh kode. Perubahan tersimpan otomatis di browser. |
+| **Mode baca-saja saat di-deploy** | Kontrol penyuntingan otomatis disembunyikan di luar `localhost`, jadi situs publiknya bersih dan tidak menyesatkan pengunjung. |
 | **Pilihan Domisili & Agama** | Domisili menyediakan 38 provinsi dan 514 kabupaten/kota Indonesia; Agama punya tujuh pilihan bawaan. Keduanya tetap bisa diketik bebas untuk menambah nilai sendiri. |
 | **Pohon otomatis** | Tata letak generasi, pasangan, dan garis keturunan dihitung sendiri dari data — tidak ada koordinat yang perlu diatur manual. |
 | **Pop-up detail** | Klik kartu mana pun untuk melihat foto besar, identitas lengkap, kutipan favorit, hobi, makanan kesukaan, dan fakta seru. |
@@ -24,6 +25,7 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 | **Tema terang & gelap** | Mengikuti preferensi sistem, dan bisa diganti manual (pilihan tersimpan di browser). |
 | **Unggah foto** | Pilih foto dari perangkat; otomatis dipotong persegi dan diperkecil agar hemat penyimpanan. |
 | **Avatar otomatis** | Belum punya foto? Avatar inisial bergradasi dibuat otomatis dari nama. |
+| **Sinkron otomatis ke `js/data.js`** | Setiap penambahan, perubahan, dan penghapusan langsung ditulis ke `js/data.js` — tinggal commit, tanpa salin-tempel. |
 | **Ekspor & impor** | Cadangkan seluruh data sebagai JSON, pulihkan kapan saja, atau salin kembali menjadi `js/data.js`. |
 | **Responsif** | Di ponsel, pop-up tampil sebagai bottom sheet dan kanvas tetap bisa dicubit. |
 
@@ -41,15 +43,71 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 
 ## 🚀 Cara menjalankan
 
-Klik dua kali `index.html` — selesai. Tidak ada langkah lain.
+**Cara cepat.** Klik dua kali `index.html` — selesai. Perubahan tersimpan di
+browser, tapi `js/data.js` harus disalin manual (menu ☰ → *Salin untuk
+js/data.js*).
 
-Kalau ingin dijalankan lewat server lokal (opsional, misalnya untuk mengetes di
-ponsel dalam jaringan yang sama):
+**Cara yang disarankan.** Jalankan server lokal kecil yang disertakan di repo
+ini. Selama server hidup, `js/data.js` **ikut diperbarui otomatis** setiap kali
+data ditambah, diubah, atau dihapus:
 
 ```bash
-python -m http.server 8000
-# lalu buka http://localhost:8000
+python serve.py
+# lalu buka http://127.0.0.1:8000
 ```
+
+Di Windows bisa juga klik dua kali **`jalankan.bat`**. Untuk memakai port lain:
+`python serve.py 8001`.
+
+Server hanya mendengarkan di `127.0.0.1` (tidak terlihat dari jaringan lain) dan
+hanya boleh menulis ke satu berkas: `js/data.js`. Isi sebelumnya selalu disalin
+dulu ke `js/data.backup.js`.
+
+> Butuh server statis biasa (misalnya untuk mengetes di ponsel dalam jaringan
+> yang sama)? `python -m http.server 8000` tetap bisa — hanya saja sinkron
+> otomatis lewat server tidak aktif di sana.
+
+---
+
+## ☁️ Deploy ke Netlify
+
+Situs ini statis, jadi tidak ada langkah build: hubungkan repo ke Netlify,
+biarkan *build command* kosong, dan *publish directory* diisi `.` — semuanya
+sudah tertulis di `netlify.toml`.
+
+**Pembagian perannya:**
+
+| Tempat | Peran |
+|---|---|
+| Lokal (`python serve.py`) | **Menyunting.** `js/data.js` diperbarui otomatis. |
+| `git push` | Jembatan ke Netlify. |
+| Netlify | **Menampilkan.** Build ulang otomatis, keluarga melihat versi terbaru. |
+
+Netlify tidak menjalankan Python dan berkasnya baca-saja, jadi sinkron otomatis
+tidak (dan tidak bisa) bekerja di sana. Karena itu halaman **otomatis masuk mode
+baca-saja** begitu dibuka dari domain selain `localhost`/`127.0.0.1`: tombol
+Tambah, Ubah, Hapus, dan seluruh menu ☰ disembunyikan. Pohon, pencarian, pop-up
+detail, zoom, dan tema tetap berfungsi penuh. Deteksinya ada di
+`Utils.isLocalEnvironment()` (`js/utils.js`).
+
+### ⚠️ Situs Netlify itu publik
+
+`netlify.toml` dan `robots.txt` memasang `noindex` supaya situs tidak muncul di
+mesin pencari — tapi itu **bukan pembatas akses**. Siapa pun yang tahu
+alamatnya tetap bisa membukanya dan membaca nama lengkap, tanggal lahir, agama,
+domisili, pekerjaan, serta foto seluruh keluarga. Sebelum deploy, pertimbangkan:
+
+- Aktifkan **password protection** di dashboard Netlify (perlu paket berbayar)
+  bila datanya benar-benar tidak untuk umum.
+- Atau kosongkan field yang paling sensitif untuk versi yang di-deploy.
+- Ingat bahwa data yang pernah ter-commit tetap ada di riwayat git.
+
+### Foto untuk versi publik
+
+Foto yang diunggah lewat form tersimpan sebagai data-URI di dalam `js/data.js`,
+sehingga berkasnya membengkak dan ikut diunduh setiap pengunjung. Untuk situs
+yang di-deploy, lebih hemat menaruh berkas foto di `assets/photos/` lalu mengisi
+kolom **path file** di form.
 
 ---
 
@@ -92,8 +150,9 @@ anggota lain selalu ditaruh paling atas.
 ### 📌 Di mana datanya tersimpan?
 
 Perubahan disimpan di **localStorage browser** — hanya di komputer dan browser
-itu. Data tidak dikirim ke mana pun, tapi juga tidak otomatis ikut ter-commit
-ke repo.
+itu. Data tidak dikirim ke mana pun. Bila **sinkron otomatis** menyala (lihat
+di bawah), salinan yang sama sekaligus ditulis ke `js/data.js` di folder ini,
+jadi tinggal di-commit.
 
 > **Penting:** begitu ada perubahan tersimpan di browser, isi `js/data.js`
 > tidak lagi dibaca. Mengedit `js/data.js` tidak akan terlihat sampai Anda
@@ -104,12 +163,43 @@ ke repo.
 | Menu | Fungsi |
 |---|---|
 | **Ubah Nama Keluarga** | Ganti nama keluarga, tagline, dan teks footer. |
+| **Sinkron otomatis ke js/data.js** | Nyalakan/matikan penulisan otomatis ke `js/data.js`. Kartu di atasnya menunjukkan keadaannya sekarang. |
 | **Ekspor Data (JSON)** | Unduh seluruh data sebagai cadangan atau untuk dipindah ke perangkat lain. |
 | **Impor Data (JSON)** | Muat file hasil ekspor. Seluruh data saat ini akan diganti. |
-| **Salin untuk js/data.js** | Menyalin isi lengkap `js/data.js` ke clipboard — inilah cara membuat perubahan **permanen di repo**. |
+| **Salin untuk js/data.js** | Menyalin isi lengkap `js/data.js` ke clipboard — cadangan cara manual bila sinkron otomatis tidak tersedia. |
 | **Muat Ulang dari js/data.js** | Buang perubahan di browser, kembali ke isi `js/data.js`. |
 
+### 🔄 Sinkron otomatis ke `js/data.js`
+
+Biasanya perubahan hanya tersimpan di browser, sehingga `js/data.js` harus
+disalin manual. Dengan sinkron otomatis, berkas itu ditulis ulang sendiri setiap
+kali data berubah — kira-kira setengah detik setelah menyimpan — jadi yang
+tersisa hanya `git commit`.
+
+Jalurnya dipilih otomatis sesuai cara halaman dibuka:
+
+| Cara membuka | Jalur | Keterangan |
+|---|---|---|
+| `python serve.py` → `http://127.0.0.1:8000` | **Server** | Langsung menyala, tanpa dialog apa pun. Paling praktis. |
+| Server statis lain di `http://…` (Chrome/Edge) | **Berkas** | Menu ☰ → *Sambungkan ke js/data.js*, tunjuk berkas `js/data.js` sekali. Browser mengingatnya; izin tulis kadang diminta lagi setelah browser ditutup. |
+| Klik dua kali `index.html` (`file://`) | — | Browser melarang penulisan berkas dari `file://`. Pakai `serve.py`, atau salin manual lewat menu ☰. |
+
+Kartu status di menu ☰ menampilkan jalur yang dipakai dan jam penulisan
+terakhir. Kalau sebuah penulisan gagal, kartunya berubah merah dan muncul
+notifikasi berisi sebabnya — data di browser tetap aman.
+
+Pilihan menyala/mati diingat per browser, jadi mematikannya sekali berarti
+tetap mati sampai dinyalakan lagi.
+
 ### Membuat perubahan permanen di repo
+
+Dengan sinkron otomatis menyala, cukup:
+
+```bash
+git add js/data.js && git commit -m "Perbarui data keluarga" && git push
+```
+
+Tanpa sinkron otomatis, cara manualnya:
 
 1. Sunting keluarga Anda lewat halaman sampai puas.
 2. Buka menu ☰ → **Salin untuk js/data.js**.
@@ -241,6 +331,10 @@ array di `data.js`, lalu daftarkan di `CONFIG.DETAIL_LISTS`:
 
 ```
 ├── index.html          # Satu-satunya halaman
+├── serve.py            # Server lokal: menyajikan situs + menulis js/data.js
+├── jalankan.bat        # Pintasan Windows untuk menjalankan serve.py
+├── netlify.toml        # Pengaturan deploy + header noindex
+├── robots.txt          # Larangan indeks mesin pencari
 ├── css/
 │   └── style.css       # Seluruh gaya + tema terang/gelap
 ├── js/
@@ -250,6 +344,7 @@ array di `data.js`, lalu daftarkan di `CONFIG.DETAIL_LISTS`:
 │   ├── components.js   # Dialog konfirmasi, peringatan, notifikasi toast
 │   ├── data.js         # ← DATA BENIH keluarga (dipakai saat pertama dibuka)
 │   ├── storage.js      # Sumber data: localStorage, CRUD, ekspor/impor
+│   ├── filesync.js     # Sinkron otomatis: menulis ulang js/data.js
 │   ├── relations.js    # Indeks & lookup relasi antar anggota
 │   ├── tree.js         # Tata letak pohon, gambar kartu & garis, geser/zoom
 │   ├── detail.js       # Pop-up detail anggota
@@ -271,9 +366,11 @@ Data yang ada sekarang adalah **contoh** (Keluarga Besar Wijaya, 18 anggota,
 keluarga sungguhan sebelum dibagikan — lewat halaman, atau dengan mengedit
 `js/data.js`.
 
-Tidak ada server dan tidak ada database. Data keluarga, foto yang diunggah, dan
-preferensi tema semuanya tersimpan di `localStorage` browser; tidak ada apa pun
-yang dikirim ke luar.
+Tidak ada database. Data keluarga, foto yang diunggah, dan preferensi tema
+semuanya tersimpan di `localStorage` browser; tidak ada apa pun yang dikirim ke
+luar. `serve.py` pun hanya berjalan di komputer Anda sendiri — ia mendengarkan
+di `127.0.0.1` saja dan satu-satunya berkas yang boleh ditulisnya adalah
+`js/data.js`.
 
 Karena localStorage terbatas (umumnya ~5 MB), foto yang diunggah otomatis
 dipotong persegi dan diperkecil ke 400 px. Untuk keluarga besar dengan banyak

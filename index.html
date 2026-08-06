@@ -34,11 +34,11 @@
                aria-label="Cari anggota keluarga">
         <button class="search-clear" id="btn-search-clear" type="button" aria-label="Hapus pencarian" hidden>&times;</button>
       </div>
-      <button class="btn-add" id="btn-add-member" type="button" title="Tambah anggota baru">
+      <button class="btn-add edit-only" id="btn-add-member" type="button" title="Tambah anggota baru">
         <span aria-hidden="true">+</span> Tambah
       </button>
       <button class="icon-btn" id="btn-theme" type="button" aria-label="Ganti tema terang/gelap" title="Ganti tema">🌙</button>
-      <button class="icon-btn" id="btn-menu-toggle" type="button" aria-label="Buka menu data" aria-expanded="false" title="Menu data">&#9776;</button>
+      <button class="icon-btn edit-only" id="btn-menu-toggle" type="button" aria-label="Buka menu data" aria-expanded="false" title="Menu data">&#9776;</button>
     </div>
   </header>
 
@@ -56,6 +56,20 @@
         <span class="slide-menu-icon" aria-hidden="true">🏷️</span> Ubah Nama Keluarga
       </button>
       <hr class="slide-menu-divider">
+
+      <div class="sync-card" id="sync-card" data-state="checking">
+        <div class="sync-head">
+          <span class="sync-dot" aria-hidden="true"></span>
+          <span class="sync-title">Sinkron otomatis ke js/data.js</span>
+        </div>
+        <p class="sync-detail" id="sync-detail">Memeriksa cara halaman ini dibuka…</p>
+        <button class="btn slide-menu-btn sync-action" id="btn-toggle-sync" type="button" hidden>
+          <span class="slide-menu-icon" aria-hidden="true">🔗</span>
+          <span id="btn-toggle-sync-label">Sambungkan</span>
+        </button>
+      </div>
+
+      <hr class="slide-menu-divider">
       <button class="btn slide-menu-btn" id="btn-export-json" type="button">
         <span class="slide-menu-icon" aria-hidden="true">💾</span> Ekspor Data (JSON)
       </button>
@@ -66,8 +80,9 @@
         <span class="slide-menu-icon" aria-hidden="true">📋</span> Salin untuk js/data.js
       </button>
       <p class="slide-menu-note">
-        Perubahan tersimpan di browser ini saja. Untuk membuatnya permanen di
-        repo, salin isi <code>js/data.js</code> lalu commit.
+        Selama sinkron otomatis menyala, <code>js/data.js</code> ikut ditulis
+        ulang setiap kali data berubah — tinggal commit. Kalau mati, perubahan
+        hanya tersimpan di browser ini dan perlu disalin manual.
       </p>
       <hr class="slide-menu-divider">
       <button class="btn btn-danger slide-menu-btn" id="btn-reset-data" type="button">
@@ -97,7 +112,7 @@
       <p class="tree-empty-icon" aria-hidden="true">🌱</p>
       <h2>Belum ada anggota keluarga</h2>
       <p>Mulai dari anggota generasi tertua, lalu tambahkan pasangan dan anak-anaknya.</p>
-      <button class="btn btn-primary" id="btn-add-first" type="button">Tambah Anggota Pertama</button>
+      <button class="btn btn-primary edit-only" id="btn-add-first" type="button">Tambah Anggota Pertama</button>
     </div>
 
     <div class="zoom-controls" role="group" aria-label="Kontrol tampilan">
@@ -128,7 +143,7 @@
 
       <div class="modal-body" id="detail-body"></div>
 
-      <div class="modal-actions">
+      <div class="modal-actions edit-only">
         <button class="btn btn-danger" id="btn-detail-delete" type="button">Hapus Anggota</button>
         <button class="btn btn-primary" id="btn-detail-edit" type="button">Ubah Data</button>
       </div>
@@ -330,6 +345,7 @@
   <script src="js/components.js"></script>
   <script src="js/data.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/filesync.js"></script>
   <script src="js/relations.js"></script>
   <script src="js/tree.js"></script>
   <script src="js/detail.js"></script>

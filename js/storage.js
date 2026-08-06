@@ -15,6 +15,7 @@ const DataStore = (() => {
 
   let meta = {};
   let people = [];
+  let changeListener = null;
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -114,6 +115,14 @@ const DataStore = (() => {
     }
   }
 
+  /**
+   * Dipanggil sekali setiap data selesai tersimpan. Dipakai App untuk
+   * meneruskan perubahan ke `js/data.js` lewat FileSync.
+   */
+  function onChange(fn) {
+    changeListener = typeof fn === "function" ? fn : null;
+  }
+
   /** Melempar Error berpesan ramah bila kuota localStorage penuh. */
   function persist() {
     try {
@@ -123,6 +132,10 @@ const DataStore = (() => {
       throw new Error(quotaFull
         ? "Penyimpanan browser penuh. Hapus beberapa foto yang diunggah, atau ekspor data lalu muat ulang."
         : "Data gagal disimpan di browser ini. Coba ekspor data sebagai cadangan.");
+    }
+    // Sinkronisasi berkas tidak boleh menggagalkan penyimpanan itu sendiri.
+    if (changeListener) {
+      try { changeListener(); } catch { /* diabaikan */ }
     }
   }
 
@@ -268,7 +281,7 @@ const FAMILY_DATA = Object.freeze(`;
   }
 
   return Object.freeze({
-    load, persist, resetToSeed,
+    load, persist, resetToSeed, onChange,
     all, getMeta, get, count,
     create, update, remove, removalImpact, updateMeta,
     toJson, fromJson, toDataJs,

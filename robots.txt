@@ -1,0 +1,6 @@
+# Situs silsilah keluarga — tidak untuk diindeks mesin pencari.
+# Pelengkap header X-Robots-Tag di netlify.toml; keduanya hanya mencegah
+# situs ditemukan lewat pencarian, bukan membatasi akses.
+
+User-agent: *
+Disallow: /

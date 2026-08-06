@@ -5,6 +5,11 @@ const App = (() => {
   let searchClear = null;
   let searchEmpty = null;
 
+  // Menyunting hanya masuk akal di komputer sendiri; di situs yang sudah
+  // di-deploy perubahan tidak pernah sampai ke repo, jadi kontrolnya
+  // disembunyikan dan halaman menjadi baca-saja.
+  const canEdit = Utils.isLocalEnvironment();
+
   /* ── Tema terang / gelap ─────────────────────── */
 
   function currentTheme() {
@@ -154,6 +159,75 @@ const App = (() => {
     reader.readAsText(file);
   }
 
+  /* ── Sinkron otomatis ke js/data.js ──────────── */
+
+  function formatJam(date) {
+    return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  /** Menerjemahkan status FileSync menjadi kartu di dalam menu data. */
+  function renderSyncCard(status) {
+    const card = document.getElementById("sync-card");
+    const detail = document.getElementById("sync-detail");
+    const button = document.getElementById("btn-toggle-sync");
+    const label = document.getElementById("btn-toggle-sync-label");
+    if (!card) return;
+
+    if (!status.supported) {
+      card.dataset.state = "off";
+      detail.textContent = FileSync.unavailableReason();
+      button.hidden = true;
+      return;
+    }
+
+    button.hidden = false;
+    button.classList.toggle("btn-primary", !status.enabled);
+
+    if (status.enabled) {
+      card.dataset.state = status.lastError ? "error" : "on";
+      const via = status.mode === "server"
+        ? "Ditulis lewat server lokal (serve.py)."
+        : `Menulis langsung ke berkas “${status.fileName || "data.js"}”.`;
+      const jam = status.lastWriteAt ? ` Terakhir ditulis ${formatJam(status.lastWriteAt)}.` : "";
+      detail.textContent = status.lastError
+        || `Aktif — ${via}${jam}${status.notice ? ` ${status.notice}` : ""}`;
+      label.textContent = "Matikan sinkron otomatis";
+    } else {
+      card.dataset.state = status.lastError ? "error" : "off";
+      detail.textContent = status.lastError || (status.mode === "server"
+        ? "Nonaktif. Server lokal siap menulis js/data.js kapan pun dinyalakan."
+        : "Nonaktif. Nyalakan lalu tunjuk berkas js/data.js di folder ini — cukup sekali.");
+      label.textContent = status.connected ? "Nyalakan sinkron otomatis" : "Sambungkan ke js/data.js";
+    }
+  }
+
+  function onSyncStatus(status, event) {
+    // Biarkan kartu tetap dalam keadaan "memeriksa" sampai deteksi selesai.
+    if (event && event.type === "detecting") return;
+    renderSyncCard(status);
+    if (!event) return;
+    if (event.type === "written" && event.first) {
+      Components.showToast("js/data.js ikut diperbarui.", "ok");
+    } else if (event.type === "error") {
+      Components.showToast(`Gagal menulis js/data.js: ${event.message}`, "error");
+    }
+  }
+
+  async function toggleSync() {
+    const before = FileSync.status();
+    if (before.enabled) {
+      FileSync.disconnect();
+      Components.showToast("Sinkron otomatis dimatikan.");
+      return;
+    }
+    try {
+      const connected = await FileSync.connect();
+      if (connected) Components.showToast("Sinkron otomatis menyala.", "ok");
+    } catch (err) {
+      Components.showAlert("Sinkron Otomatis Gagal", err.message);
+    }
+  }
+
   async function copyDataJs() {
     toggleMenu(false);
     const content = DataStore.toDataJs();
@@ -288,16 +362,28 @@ const App = (() => {
     if (e.key === "+" || e.key === "=") TreeView.zoomBy(CONFIG.ZOOM_STEP);
     if (e.key === "-") TreeView.zoomBy(-CONFIG.ZOOM_STEP);
     if (e.key === "0" || e.key.toLowerCase() === "f") TreeView.fit();
-    if (e.key.toLowerCase() === "n") { e.preventDefault(); Editor.open(null); }
+    if (canEdit && e.key.toLowerCase() === "n") { e.preventDefault(); Editor.open(null); }
   }
 
   /* ── Init ────────────────────────────────────── */
 
   function init() {
     applyTheme(currentTheme());
+    document.body.classList.toggle("is-view-only", !canEdit);
     DataStore.load();
     Relations.build();
     renderHeader();
+
+    // Setiap penyimpanan data ikut menulis ulang js/data.js bila sinkron
+    // otomatis tersedia dan menyala. Di mode baca-saja tidak ada yang
+    // perlu disinkronkan.
+    if (canEdit) {
+      DataStore.onChange(() => FileSync.schedule());
+      FileSync.init({
+        getContent: () => DataStore.toDataJs(),
+        onStatus: onSyncStatus,
+      });
+    }
 
     searchInput = document.getElementById("search-input");
     searchClear = document.getElementById("btn-search-clear");
@@ -312,8 +398,8 @@ const App = (() => {
         TreeView.setActive(id);
         if (id) TreeView.focusPerson(id);
       },
-      onEdit: id => Editor.open(id),
-      onDelete: deleteMember,
+      onEdit: canEdit ? (id => Editor.open(id)) : null,
+      onDelete: canEdit ? deleteMember : null,
     });
 
     Editor.init({ onSaved: id => applyDataChange(id, false) });
@@ -329,26 +415,29 @@ const App = (() => {
     document.getElementById("btn-zoom-out").addEventListener("click", () => TreeView.zoomBy(-CONFIG.ZOOM_STEP));
     document.getElementById("btn-zoom-fit").addEventListener("click", () => TreeView.fit());
 
-    // ── CRUD & menu data ──
-    document.getElementById("btn-add-member").addEventListener("click", () => Editor.open(null));
-    document.getElementById("btn-add-first").addEventListener("click", () => Editor.open(null));
-    document.getElementById("btn-menu-toggle").addEventListener("click", () => toggleMenu());
-    document.getElementById("btn-menu-close").addEventListener("click", () => toggleMenu(false));
-    document.getElementById("slide-menu-overlay").addEventListener("click", () => toggleMenu(false));
-    document.getElementById("btn-edit-meta").addEventListener("click", openMetaForm);
-    document.getElementById("btn-export-json").addEventListener("click", exportJson);
-    document.getElementById("btn-copy-datajs").addEventListener("click", copyDataJs);
-    document.getElementById("btn-reset-data").addEventListener("click", resetData);
+    // ── CRUD & menu data (hanya di komputer sendiri) ──
+    if (canEdit) {
+      document.getElementById("btn-add-member").addEventListener("click", () => Editor.open(null));
+      document.getElementById("btn-add-first").addEventListener("click", () => Editor.open(null));
+      document.getElementById("btn-menu-toggle").addEventListener("click", () => toggleMenu());
+      document.getElementById("btn-menu-close").addEventListener("click", () => toggleMenu(false));
+      document.getElementById("slide-menu-overlay").addEventListener("click", () => toggleMenu(false));
+      document.getElementById("btn-edit-meta").addEventListener("click", openMetaForm);
+      document.getElementById("btn-export-json").addEventListener("click", exportJson);
+      document.getElementById("btn-copy-datajs").addEventListener("click", copyDataJs);
+      document.getElementById("btn-toggle-sync").addEventListener("click", toggleSync);
+      document.getElementById("btn-reset-data").addEventListener("click", resetData);
 
-    const importInput = document.getElementById("import-file-input");
-    document.getElementById("btn-import-json").addEventListener("click", () => {
-      toggleMenu(false);
-      importInput.click();
-    });
-    importInput.addEventListener("change", () => {
-      importJson(importInput.files[0]);
-      importInput.value = "";
-    });
+      const importInput = document.getElementById("import-file-input");
+      document.getElementById("btn-import-json").addEventListener("click", () => {
+        toggleMenu(false);
+        importInput.click();
+      });
+      importInput.addEventListener("change", () => {
+        importJson(importInput.files[0]);
+        importInput.value = "";
+      });
+    }
 
     document.getElementById("meta-form").addEventListener("submit", saveMetaForm);
     document.getElementById("btn-meta-cancel").addEventListener("click", closeMetaForm);

@@ -1,0 +1,31 @@
+# Konfigurasi deploy ke Netlify.
+#
+# Situs ini murni statis: tidak ada langkah build, seluruh isi folder
+# disajikan apa adanya. `serve.py` hanya dipakai di komputer sendiri untuk
+# menyunting data; di Netlify ia tidak berjalan, jadi halaman yang ter-deploy
+# otomatis masuk mode baca-saja (lihat `Utils.isLocalEnvironment` di js/utils.js).
+
+[build]
+  publish = "."
+  command = ""
+
+# ── Header untuk seluruh halaman ──────────────────
+#
+# Catatan penting: `noindex` menjauhkan situs dari mesin pencari, tetapi
+# TIDAK membatasi akses. Siapa pun yang tahu alamatnya tetap bisa membukanya.
+# Untuk benar-benar membatasi, perlu proteksi kata sandi Netlify (paket
+# berbayar) atau jangan menaruh data pribadi di sini sama sekali.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive, noimageindex, nosnippet"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+
+# Data keluarga harus selalu versi terbaru begitu deploy baru terbit.
+[[headers]]
+  for = "/js/data.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

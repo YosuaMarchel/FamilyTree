@@ -841,6 +841,10 @@ html[data-theme="dark"] .btn-danger { background: #B4483C; border-color: #B4483C
 .btn-add:hover { background: rgba(255, 255, 255, 0.32); }
 .btn-add span { font-size: 16px; line-height: 1; }
 
+/* Mode baca-saja: dipasang saat halaman dibuka dari situs yang sudah
+   di-deploy, karena menyunting di sana tidak kembali ke repo. */
+body.is-view-only .edit-only { display: none !important; }
+
 /* ═══════════════════════════════════════════════
    MENU DATA (slide-out)
    ═══════════════════════════════════════════════ */
@@ -933,6 +937,66 @@ html[data-theme="dark"] .btn-danger { background: #B4483C; border-color: #B4483C
   border-radius: 5px;
   background: var(--surface-2);
   border: 1px solid var(--border);
+}
+
+/* ── Kartu status sinkron otomatis ── */
+.sync-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.sync-head { display: flex; align-items: center; gap: 8px; }
+
+.sync-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sync-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-3);
+  box-shadow: 0 0 0 3px transparent;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.sync-detail {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+.sync-detail code {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.sync-action { margin-top: 2px; padding: 9px 12px; font-size: 12.5px; }
+
+.sync-card[data-state="on"] { border-color: var(--primary); background: var(--primary-soft); }
+.sync-card[data-state="on"] .sync-dot {
+  background: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.sync-card[data-state="off"] .sync-dot { background: var(--accent); }
+.sync-card[data-state="error"] { border-color: var(--female); }
+.sync-card[data-state="error"] .sync-dot { background: var(--female); }
+.sync-card[data-state="error"] .sync-detail { color: var(--female); }
+.sync-card[data-state="checking"] .sync-dot { animation: syncPulse 1.1s ease-in-out infinite; }
+
+@keyframes syncPulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
 }
 
 /* ═══════════════════════════════════════════════
@@ -1223,6 +1287,8 @@ html[data-theme="dark"] .form-error { background: #3A211E; border-color: #6B3A34
   transition: opacity 0.22s, transform 0.22s;
 }
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
+.toast-error { background: var(--female); color: #FFFFFF; }
+.toast-ok { background: var(--primary); color: #FFFFFF; }
 
 /* ═══════════════════════════════════════════════
    ANIMASI

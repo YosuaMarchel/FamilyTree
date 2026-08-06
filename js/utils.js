@@ -98,6 +98,23 @@ const Utils = (() => {
     return Math.max(min, Math.min(max, val));
   }
 
+  /**
+   * Benar hanya bila halaman dijalankan di komputer sendiri: `file://`,
+   * `localhost`, atau `127.0.0.1`. Dipakai untuk memutuskan apakah kontrol
+   * penyuntingan ditampilkan — di situs yang sudah di-deploy (Netlify dan
+   * sejenisnya) menyunting tidak ada gunanya, karena perubahan hanya mengendap
+   * di localStorage pengunjung dan tidak pernah kembali ke repo.
+   */
+  function isLocalEnvironment() {
+    const host = location.hostname;
+    return host === ""            // file://
+      || host === "localhost"
+      || host.endsWith(".localhost")
+      || host === "127.0.0.1"
+      || host === "::1"
+      || host === "[::1]";
+  }
+
   function debounce(fn, delayMs) {
     let timer = null;
     return (...args) => {
@@ -179,7 +196,7 @@ const Utils = (() => {
 
   return Object.freeze({
     formatTanggal, formatTTL, todayIso, parseDate, calcAge, daysToBirthday,
-    initials, hashCode, avatarDataUri, clamp, debounce, normalize, el, svgEl,
+    initials, hashCode, avatarDataUri, clamp, isLocalEnvironment, debounce, normalize, el, svgEl,
     isValidPartialDate, shrinkImage, downloadFile,
   });
 })();

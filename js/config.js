@@ -62,6 +62,10 @@ const CONFIG = Object.freeze({
   PHOTO_QUALITY: 0.82,
   TOAST_DURATION_MS: 2600,
 
+  // Jeda sebelum js/data.js ditulis ulang, supaya beberapa perubahan
+  // beruntun cukup menghasilkan satu penulisan.
+  SYNC_DEBOUNCE_MS: 400,
+
   // ── Warna avatar cadangan (dipakai saat foto belum tersedia) ──
   AVATAR_PALETTE: Object.freeze([
     Object.freeze(["#2E6B4F", "#5FA985"]),
@@ -76,4 +80,5 @@ const CONFIG = Object.freeze({
 
   STORAGE_THEME_KEY: "familytree.theme",
   STORAGE_DATA_KEY: "familytree.data.v1",
+  STORAGE_SYNC_KEY: "familytree.autosync",
 });

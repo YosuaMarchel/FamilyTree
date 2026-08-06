@@ -12,3 +12,8 @@ Desktop.ini
 # Sementara
 *.log
 *.tmp
+
+# Cadangan otomatis dari serve.py (isi data.js sebelum penulisan terakhir)
+js/data.backup.js
+js/.data-*.js
+__pycache__/
