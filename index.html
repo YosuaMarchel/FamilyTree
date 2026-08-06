@@ -193,7 +193,10 @@
 
             <label class="field">
               <span class="field-label">Domisili</span>
-              <input type="text" id="f-domicile" maxlength="80" autocomplete="off">
+              <input type="text" id="f-domicile" maxlength="80" autocomplete="off"
+                     list="dl-domicile" placeholder="Pilih atau ketik sendiri…">
+              <datalist id="dl-domicile"></datalist>
+              <span class="field-hint">Kabupaten/kota &amp; provinsi Indonesia. Bisa juga diketik bebas untuk luar negeri.</span>
             </label>
 
             <label class="field">
@@ -208,7 +211,10 @@
 
             <label class="field">
               <span class="field-label">Agama</span>
-              <input type="text" id="f-religion" maxlength="40" autocomplete="off">
+              <input type="text" id="f-religion" maxlength="40" autocomplete="off"
+                     list="dl-religion" placeholder="Pilih atau ketik sendiri…">
+              <datalist id="dl-religion"></datalist>
+              <span class="field-hint">Ketik langsung untuk menambah pilihan baru — akan muncul di daftar berikutnya.</span>
             </label>
           </div>
         </fieldset>
@@ -319,6 +325,7 @@
 
   <!-- App modules (order matters: dependencies first) -->
   <script src="js/config.js"></script>
+  <script src="js/wilayah.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/components.js"></script>
   <script src="js/data.js"></script>

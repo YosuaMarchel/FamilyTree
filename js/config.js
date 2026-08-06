@@ -46,6 +46,14 @@ const CONFIG = Object.freeze({
   ]),
 
   BLOOD_TYPES: Object.freeze(["A", "B", "AB", "O"]),
+
+  // Pilihan awal agama. Bukan daftar tertutup — nilai lain yang diketik
+  // pengguna ikut tersimpan dan otomatis muncul sebagai pilihan berikutnya.
+  RELIGIONS: Object.freeze([
+    "Islam", "Kristen Protestan", "Katolik", "Hindu", "Buddha", "Konghucu",
+    "Kepercayaan kepada Tuhan YME",
+  ]),
+
   MAX_NAME_LENGTH: 100,
   MAX_PARENTS: 2,
 

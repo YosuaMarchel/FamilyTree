@@ -87,6 +87,32 @@ const Editor = (() => {
     fillSelect(spouseSelectEl, spouseCandidates(), "— pilih untuk ditambahkan —", "");
   }
 
+  /**
+   * Isi sebuah <datalist>. Nilai yang sudah dipakai anggota lain didahulukan
+   * (biasanya paling relevan), disusul daftar bawaan. Karena ini <input list>
+   * dan bukan <select>, pengguna tetap bebas mengetik nilai baru — nilai itu
+   * ikut tersimpan dan otomatis muncul sebagai pilihan saat form dibuka lagi.
+   */
+  function fillDatalist(datalistId, fieldKey, baseOptions) {
+    const seen = new Set();
+    const used = [];
+    DataStore.all().forEach(p => {
+      const value = (p[fieldKey] || "").trim();
+      const key = value.toLowerCase();
+      if (value && !seen.has(key)) { seen.add(key); used.push(value); }
+    });
+    used.sort((a, b) => a.localeCompare(b, "id"));
+
+    const list = document.getElementById(datalistId);
+    list.textContent = "";
+    used.concat(baseOptions.filter(v => !seen.has(v.toLowerCase())))
+      .forEach(value => {
+        const opt = Utils.el("option");
+        opt.value = value;
+        list.appendChild(opt);
+      });
+  }
+
   function setPhoto(value) {
     photoValue = value || "";
     document.getElementById("f-photo").value = photoValue.startsWith("data:") ? "" : photoValue;
@@ -137,6 +163,9 @@ const Editor = (() => {
       const items = person ? person[spec.key] || [] : [];
       listFieldEls.get(spec.key).value = items.join(spec.input === "lines" ? "\n" : ", ");
     });
+
+    fillDatalist("dl-domicile", "domicile", WILAYAH.PROVINCES.concat(WILAYAH.CITIES));
+    fillDatalist("dl-religion", "religion", CONFIG.RELIGIONS);
 
     const candidates = parentCandidates();
     const parents = person ? person.parents : [];
