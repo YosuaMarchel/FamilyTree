@@ -34,9 +34,48 @@
                aria-label="Cari anggota keluarga">
         <button class="search-clear" id="btn-search-clear" type="button" aria-label="Hapus pencarian" hidden>&times;</button>
       </div>
+      <button class="btn-add" id="btn-add-member" type="button" title="Tambah anggota baru">
+        <span aria-hidden="true">+</span> Tambah
+      </button>
       <button class="icon-btn" id="btn-theme" type="button" aria-label="Ganti tema terang/gelap" title="Ganti tema">🌙</button>
+      <button class="icon-btn" id="btn-menu-toggle" type="button" aria-label="Buka menu data" aria-expanded="false" title="Menu data">&#9776;</button>
     </div>
   </header>
+
+  <!-- ═══════════════════════════════════════════════
+       MENU DATA (slide-out)
+       ═══════════════════════════════════════════════ -->
+  <div class="slide-menu-overlay" id="slide-menu-overlay"></div>
+  <aside class="slide-menu" id="slide-menu" role="dialog" aria-label="Menu data" aria-hidden="true">
+    <div class="slide-menu-header">
+      <span class="slide-menu-title">Kelola Data</span>
+      <button class="slide-menu-close" id="btn-menu-close" type="button" aria-label="Tutup menu">&times;</button>
+    </div>
+    <div class="slide-menu-body">
+      <button class="btn slide-menu-btn" id="btn-edit-meta" type="button">
+        <span class="slide-menu-icon" aria-hidden="true">🏷️</span> Ubah Nama Keluarga
+      </button>
+      <hr class="slide-menu-divider">
+      <button class="btn slide-menu-btn" id="btn-export-json" type="button">
+        <span class="slide-menu-icon" aria-hidden="true">💾</span> Ekspor Data (JSON)
+      </button>
+      <button class="btn slide-menu-btn" id="btn-import-json" type="button">
+        <span class="slide-menu-icon" aria-hidden="true">📂</span> Impor Data (JSON)
+      </button>
+      <button class="btn slide-menu-btn" id="btn-copy-datajs" type="button">
+        <span class="slide-menu-icon" aria-hidden="true">📋</span> Salin untuk js/data.js
+      </button>
+      <p class="slide-menu-note">
+        Perubahan tersimpan di browser ini saja. Untuk membuatnya permanen di
+        repo, salin isi <code>js/data.js</code> lalu commit.
+      </p>
+      <hr class="slide-menu-divider">
+      <button class="btn btn-danger slide-menu-btn" id="btn-reset-data" type="button">
+        <span class="slide-menu-icon" aria-hidden="true">🔄</span> Muat Ulang dari js/data.js
+      </button>
+    </div>
+  </aside>
+  <input type="file" id="import-file-input" accept="application/json,.json" hidden>
 
   <!-- ═══════════════════════════════════════════════
        STATS STRIP
@@ -53,6 +92,13 @@
     </div>
 
     <p class="search-empty" id="search-empty" role="status" hidden>Tidak ada anggota yang cocok.</p>
+
+    <div class="tree-empty" id="tree-empty">
+      <p class="tree-empty-icon" aria-hidden="true">🌱</p>
+      <h2>Belum ada anggota keluarga</h2>
+      <p>Mulai dari anggota generasi tertua, lalu tambahkan pasangan dan anak-anaknya.</p>
+      <button class="btn btn-primary" id="btn-add-first" type="button">Tambah Anggota Pertama</button>
+    </div>
 
     <div class="zoom-controls" role="group" aria-label="Kontrol tampilan">
       <button class="zoom-btn" id="btn-zoom-in" type="button" aria-label="Perbesar" title="Perbesar">+</button>
@@ -81,6 +127,188 @@
       </div>
 
       <div class="modal-body" id="detail-body"></div>
+
+      <div class="modal-actions">
+        <button class="btn btn-danger" id="btn-detail-delete" type="button">Hapus Anggota</button>
+        <button class="btn btn-primary" id="btn-detail-edit" type="button">Ubah Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       MODAL EDITOR (tambah / ubah anggota)
+       ═══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="editor-overlay" hidden>
+    <div class="modal modal-editor" id="editor-modal" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+      <header class="editor-header">
+        <h2 class="editor-title" id="editor-title">Tambah Anggota</h2>
+        <button class="editor-close" id="btn-editor-close" type="button" aria-label="Tutup form">&times;</button>
+      </header>
+
+      <form class="editor-form" id="editor-form" novalidate>
+        <!-- ── Identitas ── -->
+        <fieldset class="form-section">
+          <legend>Identitas</legend>
+
+          <div class="form-grid">
+            <label class="field field-wide">
+              <span class="field-label">Nama lengkap <em>*</em></span>
+              <input type="text" id="f-name" maxlength="100" autocomplete="off" required>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Nama panggilan</span>
+              <input type="text" id="f-nickname" maxlength="60" autocomplete="off">
+            </label>
+
+            <div class="field">
+              <span class="field-label">Jenis kelamin <em>*</em></span>
+              <div class="radio-row">
+                <label class="radio"><input type="radio" name="f-gender" value="M" checked> Laki-laki</label>
+                <label class="radio"><input type="radio" name="f-gender" value="F"> Perempuan</label>
+              </div>
+            </div>
+
+            <label class="field">
+              <span class="field-label">Tempat lahir</span>
+              <input type="text" id="f-birthPlace" maxlength="80" autocomplete="off">
+            </label>
+
+            <label class="field">
+              <span class="field-label">Tanggal lahir</span>
+              <input type="text" id="f-birthDate" placeholder="YYYY-MM-DD" inputmode="numeric" autocomplete="off">
+              <span class="field-hint">Boleh sebagian: 1965, 1965-01, atau 1965-01-22</span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Tanggal wafat</span>
+              <input type="text" id="f-deathDate" placeholder="YYYY-MM-DD" inputmode="numeric" autocomplete="off">
+              <span class="field-hint">Kosongkan bila masih hidup</span>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Golongan darah</span>
+              <select id="f-bloodType"></select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">Domisili</span>
+              <input type="text" id="f-domicile" maxlength="80" autocomplete="off">
+            </label>
+
+            <label class="field">
+              <span class="field-label">Pekerjaan</span>
+              <input type="text" id="f-occupation" maxlength="80" autocomplete="off">
+            </label>
+
+            <label class="field">
+              <span class="field-label">Pendidikan</span>
+              <input type="text" id="f-education" maxlength="80" autocomplete="off">
+            </label>
+
+            <label class="field">
+              <span class="field-label">Agama</span>
+              <input type="text" id="f-religion" maxlength="40" autocomplete="off">
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- ── Foto ── -->
+        <fieldset class="form-section">
+          <legend>Foto</legend>
+          <div class="photo-editor">
+            <img class="photo-preview" id="f-photo-preview" alt="">
+            <div class="photo-actions">
+              <button class="btn" id="btn-photo-pick" type="button">Pilih Foto…</button>
+              <button class="btn" id="btn-photo-clear" type="button">Hapus Foto</button>
+              <input type="file" id="f-photo-file" accept="image/*" hidden>
+              <label class="field">
+                <span class="field-label">atau isi path file</span>
+                <input type="text" id="f-photo" placeholder="assets/photos/nama.jpg" autocomplete="off">
+              </label>
+              <span class="field-hint">Foto yang diunggah dipotong jadi persegi &amp; diperkecil otomatis.</span>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- ── Relasi ── -->
+        <fieldset class="form-section">
+          <legend>Relasi</legend>
+
+          <div class="form-grid">
+            <label class="field">
+              <span class="field-label">Orang tua 1</span>
+              <select id="f-parent1"></select>
+            </label>
+            <label class="field">
+              <span class="field-label">Orang tua 2</span>
+              <select id="f-parent2"></select>
+            </label>
+          </div>
+
+          <div class="field field-wide">
+            <span class="field-label">Pasangan</span>
+            <div class="spouse-picker">
+              <select id="f-spouse-select"></select>
+              <button class="btn" id="btn-add-spouse" type="button">Tambah</button>
+            </div>
+            <div class="spouse-chips" id="f-spouse-chips"></div>
+          </div>
+        </fieldset>
+
+        <!-- ── Cerita ── -->
+        <fieldset class="form-section">
+          <legend>Cerita</legend>
+
+          <label class="field field-wide">
+            <span class="field-label">Kutipan favorit</span>
+            <textarea id="f-quote" rows="2" maxlength="240"></textarea>
+          </label>
+
+          <div class="form-grid" id="f-list-fields"></div>
+        </fieldset>
+
+        <p class="form-error" id="editor-error" role="alert" hidden></p>
+
+        <div class="editor-actions">
+          <button class="btn" id="btn-editor-cancel" type="button">Batal</button>
+          <button class="btn btn-primary" id="btn-editor-save" type="submit">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       MODAL PENGATURAN KELUARGA
+       ═══════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="meta-overlay" hidden>
+    <div class="modal modal-meta" id="meta-modal" role="dialog" aria-modal="true" aria-labelledby="meta-title">
+      <header class="editor-header">
+        <h2 class="editor-title" id="meta-title">Nama Keluarga</h2>
+        <button class="editor-close" id="btn-meta-close" type="button" aria-label="Tutup form">&times;</button>
+      </header>
+
+      <form class="editor-form" id="meta-form" novalidate>
+        <label class="field field-wide">
+          <span class="field-label">Nama keluarga <em>*</em></span>
+          <input type="text" id="m-familyName" maxlength="80" autocomplete="off" required>
+        </label>
+        <label class="field field-wide">
+          <span class="field-label">Tagline</span>
+          <input type="text" id="m-tagline" maxlength="120" autocomplete="off">
+        </label>
+        <label class="field field-wide">
+          <span class="field-label">Teks footer</span>
+          <input type="text" id="m-footer" maxlength="120" autocomplete="off">
+        </label>
+
+        <p class="form-error" id="meta-error" role="alert" hidden></p>
+
+        <div class="editor-actions">
+          <button class="btn" id="btn-meta-cancel" type="button">Batal</button>
+          <button class="btn btn-primary" type="submit">Simpan</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -92,10 +320,13 @@
   <!-- App modules (order matters: dependencies first) -->
   <script src="js/config.js"></script>
   <script src="js/utils.js"></script>
+  <script src="js/components.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/relations.js"></script>
   <script src="js/tree.js"></script>
   <script src="js/detail.js"></script>
+  <script src="js/editor.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

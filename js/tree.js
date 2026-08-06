@@ -375,6 +375,9 @@ const TreeView = (() => {
 
   function onPointerDown(e) {
     if (e.button !== undefined && e.button !== 0 && e.pointerType === "mouse") return;
+    // Jangan mulai menggeser dari tombol/overlay — pointer capture di
+    // viewport bisa menelan klik tombolnya.
+    if (e.target.closest(".zoom-controls, .tree-empty")) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     dragged = false;
 
@@ -510,7 +513,7 @@ const TreeView = (() => {
   function stats() {
     return {
       total: nodes.length,
-      generations: maxDepth + 1,
+      generations: nodes.length ? maxDepth + 1 : 0,
       living: nodes.filter(n => !Relations.isDeceased(n.person)).length,
     };
   }
@@ -527,6 +530,18 @@ const TreeView = (() => {
     renderLines();
     renderNodes();
     renderGenerationLabels();
+    viewportEl.classList.toggle("is-empty", nodes.length === 0);
+  }
+
+  /**
+   * Menggambar ulang setelah data berubah. Secara bawaan posisi & zoom
+   * dipertahankan supaya pengguna tidak kehilangan konteks setelah menyunting.
+   */
+  function refresh(options) {
+    const keepView = !(options && options.refit);
+    render();
+    if (keepView && nodes.length) applyTransform(false);
+    else fit();
   }
 
   function init(options) {
@@ -544,6 +559,6 @@ const TreeView = (() => {
   }
 
   return Object.freeze({
-    init, render, fit, zoomBy, focusPerson, search, setActive, stats,
+    init, render, refresh, fit, zoomBy, focusPerson, search, setActive, stats,
   });
 })();

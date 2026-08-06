@@ -2,7 +2,9 @@
 
 /**
  * Membangun indeks anggota keluarga dan menyediakan lookup relasi
- * (orang tua, pasangan, anak, saudara) di atas FAMILY_DATA.
+ * (orang tua, pasangan, anak, saudara) di atas isi DataStore.
+ *
+ * Panggil build() ulang setiap kali data berubah.
  */
 const Relations = (() => {
   const byId = new Map();
@@ -13,8 +15,8 @@ const Relations = (() => {
     byId.clear();
     childrenOfId.clear();
 
-    // Salin agar bisa dinormalisasi tanpa mengubah FAMILY_DATA.
-    people = FAMILY_DATA.map(p => ({
+    // Salin agar bisa dinormalisasi tanpa mengubah isi DataStore.
+    people = DataStore.all().map(p => ({
       ...p,
       parents: Array.isArray(p.parents) ? p.parents.slice() : [],
       spouses: Array.isArray(p.spouses) ? p.spouses.slice() : [],
@@ -70,8 +72,8 @@ const Relations = (() => {
     return out;
   }
 
-  /** Jumlah keturunan langsung (anak, cucu, cicit, …). */
-  function descendantCount(person) {
+  /** Semua keturunan (anak, cucu, cicit, …) sebagai himpunan id. */
+  function descendantIds(person) {
     const seen = new Set();
     const stack = childrenOf(person);
     while (stack.length) {
@@ -80,7 +82,11 @@ const Relations = (() => {
       seen.add(c.id);
       childrenOf(c).forEach(g => stack.push(g));
     }
-    return seen.size;
+    return seen;
+  }
+
+  function descendantCount(person) {
+    return descendantIds(person).size;
   }
 
   function isDeceased(person) {
@@ -90,6 +96,6 @@ const Relations = (() => {
   return Object.freeze({
     build, all, get, has,
     parentsOf, spousesOf, childrenOf, siblingsOf,
-    descendantCount, isDeceased,
+    descendantIds, descendantCount, isDeceased,
   });
 })();

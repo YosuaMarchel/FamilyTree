@@ -28,14 +28,31 @@ const CONFIG = Object.freeze({
   ]),
   DAYS: Object.freeze(["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]),
 
-  // ── Blok detail: kunci data -> judul & ikon kartu di modal ──
+  // ── Blok detail: kunci data -> judul, ikon, gaya tampil, & gaya isian ──
+  //    Satu-satunya sumber kebenaran: dipakai modal detail DAN form editor.
+  //    input "comma" = dipisah koma pada satu baris; "lines" = satu per baris.
   DETAIL_LISTS: Object.freeze([
-    Object.freeze({ key: "hobbies", title: "Hobi", icon: "🎯", style: "chip" }),
-    Object.freeze({ key: "favoriteFoods", title: "Makanan Kesukaan", icon: "🍽️", style: "chip" }),
-    Object.freeze({ key: "favoriteMusic", title: "Musik & Hiburan", icon: "🎵", style: "chip" }),
-    Object.freeze({ key: "traits", title: "Ciri Khas", icon: "✨", style: "chip" }),
-    Object.freeze({ key: "funFacts", title: "Fakta Seru", icon: "💡", style: "bullet" }),
+    Object.freeze({ key: "hobbies", title: "Hobi", icon: "🎯", style: "chip", input: "comma" }),
+    Object.freeze({ key: "favoriteFoods", title: "Makanan Kesukaan", icon: "🍽️", style: "chip", input: "comma" }),
+    Object.freeze({ key: "favoriteMusic", title: "Musik & Hiburan", icon: "🎵", style: "chip", input: "comma" }),
+    Object.freeze({ key: "traits", title: "Ciri Khas", icon: "✨", style: "chip", input: "comma" }),
+    Object.freeze({ key: "funFacts", title: "Fakta Seru", icon: "💡", style: "bullet", input: "lines" }),
   ]),
+
+  // ── Field teks bebas pada satu anggota (di luar id/name/gender/relasi) ──
+  PERSON_TEXT_FIELDS: Object.freeze([
+    "nickname", "photo", "birthPlace", "birthDate", "deathDate", "bloodType",
+    "domicile", "occupation", "education", "religion", "quote",
+  ]),
+
+  BLOOD_TYPES: Object.freeze(["A", "B", "AB", "O"]),
+  MAX_NAME_LENGTH: 100,
+  MAX_PARENTS: 2,
+
+  // Foto diperkecil sebelum disimpan agar tidak menghabiskan kuota localStorage.
+  PHOTO_MAX_SIZE: 400,
+  PHOTO_QUALITY: 0.82,
+  TOAST_DURATION_MS: 2600,
 
   // ── Warna avatar cadangan (dipakai saat foto belum tersedia) ──
   AVATAR_PALETTE: Object.freeze([
@@ -50,4 +67,5 @@ const CONFIG = Object.freeze({
   ]),
 
   STORAGE_THEME_KEY: "familytree.theme",
+  STORAGE_DATA_KEY: "familytree.data.v1",
 });

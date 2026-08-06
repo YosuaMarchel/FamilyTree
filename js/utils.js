@@ -19,6 +19,14 @@ const Utils = (() => {
     return place || tgl || "";
   }
 
+  /** Tanggal hari ini sebagai "YYYY-MM-DD" (waktu lokal, bukan UTC). */
+  function todayIso() {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }
+
   function parseDate(iso) {
     if (!iso) return null;
     const [y, m, d] = String(iso).split("-").map(n => parseInt(n, 10));
@@ -116,8 +124,62 @@ const Utils = (() => {
     return node;
   }
 
+  /** Validasi tanggal parsial: "1965", "1965-01", atau "1965-01-22". */
+  function isValidPartialDate(iso) {
+    const value = String(iso || "").trim();
+    if (!value) return true;
+    if (!/^\d{4}(-\d{2}(-\d{2})?)?$/.test(value)) return false;
+    const [y, m, d] = value.split("-").map(Number);
+    if (y < 1000 || y > 3000) return false;
+    if (m !== undefined && (m < 1 || m > 12)) return false;
+    if (d !== undefined) {
+      const date = new Date(y, m - 1, d);
+      if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return false;
+    }
+    return true;
+  }
+
+  /** Memperkecil gambar ke kotak PHOTO_MAX_SIZE, hasilnya data-URI JPEG. */
+  function shrinkImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("File foto tidak bisa dibaca."));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("File itu bukan gambar yang bisa dibaca."));
+        img.onload = () => {
+          const max = CONFIG.PHOTO_MAX_SIZE;
+          const side = Math.min(img.width, img.height);          // potong jadi persegi
+          const sx = (img.width - side) / 2;
+          const sy = (img.height - side) / 2;
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.min(side, max);
+          canvas.height = canvas.width;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", CONFIG.PHOTO_QUALITY));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function downloadFile(filename, text, mime) {
+    const blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   return Object.freeze({
-    formatTanggal, formatTTL, parseDate, calcAge, daysToBirthday,
+    formatTanggal, formatTTL, todayIso, parseDate, calcAge, daysToBirthday,
     initials, hashCode, avatarDataUri, clamp, debounce, normalize, el, svgEl,
+    isValidPartialDate, shrinkImage, downloadFile,
   });
 })();

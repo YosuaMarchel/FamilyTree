@@ -12,6 +12,8 @@ const Detail = (() => {
   let history = [];
   let lastFocused = null;
   let onNavigate = null;
+  let onEdit = null;
+  let onDelete = null;
 
   /* ── Blok penyusun isi modal ─────────────────── */
 
@@ -241,6 +243,22 @@ const Detail = (() => {
     return !overlayEl.hidden;
   }
 
+  function currentId() {
+    return history.length ? history[history.length - 1] : null;
+  }
+
+  /**
+   * Menggambar ulang isi modal setelah data berubah. Anggota yang sudah
+   * dihapus dibuang dari riwayat; kalau tidak ada lagi yang tersisa,
+   * modalnya ditutup.
+   */
+  function refresh() {
+    if (!isOpen()) return;
+    history = history.filter(id => Relations.has(id));
+    if (history.length === 0) { close(); return; }
+    paint(Relations.get(history[history.length - 1]));
+  }
+
   function close() {
     if (!isOpen()) return;
     overlayEl.classList.remove("is-open");
@@ -273,9 +291,17 @@ const Detail = (() => {
     btnClose = document.getElementById("btn-detail-close");
     btnBack = document.getElementById("btn-detail-back");
     onNavigate = options && options.onNavigate;
+    onEdit = options && options.onEdit;
+    onDelete = options && options.onDelete;
 
     btnClose.addEventListener("click", close);
     btnBack.addEventListener("click", back);
+    document.getElementById("btn-detail-edit").addEventListener("click", () => {
+      if (onEdit && currentId()) onEdit(currentId());
+    });
+    document.getElementById("btn-detail-delete").addEventListener("click", () => {
+      if (onDelete && currentId()) onDelete(currentId());
+    });
     overlayEl.addEventListener("click", e => { if (e.target === overlayEl) close(); });
     modalEl.addEventListener("keydown", trapFocus);
     bodyEl.addEventListener("click", e => {
@@ -284,5 +310,5 @@ const Detail = (() => {
     });
   }
 
-  return Object.freeze({ init, open, close, back, isOpen });
+  return Object.freeze({ init, open, close, back, isOpen, currentId, refresh });
 })();

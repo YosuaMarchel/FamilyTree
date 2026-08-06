@@ -13,6 +13,7 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 
 | Fitur | Keterangan |
 |---|---|
+| **CRUD lengkap** | Tambah, ubah, dan hapus anggota langsung dari halaman — tanpa menyentuh kode. Perubahan tersimpan otomatis di browser. |
 | **Pohon otomatis** | Tata letak generasi, pasangan, dan garis keturunan dihitung sendiri dari data — tidak ada koordinat yang perlu diatur manual. |
 | **Pop-up detail** | Klik kartu mana pun untuk melihat foto besar, identitas lengkap, kutipan favorit, hobi, makanan kesukaan, dan fakta seru. |
 | **Lompat antar relasi** | Di dalam pop-up, orang tua/pasangan/anak/saudara bisa diklik untuk langsung berpindah, lengkap dengan tombol kembali. |
@@ -20,7 +21,9 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 | **Sorot keluarga** | Arahkan kursor ke satu kartu — pasangan, orang tua, dan anaknya ikut tersorot beserta garis relasinya. |
 | **Pencarian** | Cari berdasarkan nama, panggilan, domisili, pekerjaan, atau hobi; hasilnya langsung disorot dan dibawa ke tengah layar. |
 | **Tema terang & gelap** | Mengikuti preferensi sistem, dan bisa diganti manual (pilihan tersimpan di browser). |
+| **Unggah foto** | Pilih foto dari perangkat; otomatis dipotong persegi dan diperkecil agar hemat penyimpanan. |
 | **Avatar otomatis** | Belum punya foto? Avatar inisial bergradasi dibuat otomatis dari nama. |
+| **Ekspor & impor** | Cadangkan seluruh data sebagai JSON, pulihkan kapan saja, atau salin kembali menjadi `js/data.js`. |
 | **Responsif** | Di ponsel, pop-up tampil sebagai bottom sheet dan kanvas tetap bisa dicubit. |
 
 ### Pintasan papan ketik
@@ -28,7 +31,8 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 | Tombol | Fungsi |
 |---|---|
 | `/` | Fokus ke kotak pencarian |
-| `Esc` | Tutup pop-up, atau bersihkan pencarian |
+| `N` | Tambah anggota baru |
+| `Esc` | Tutup form/pop-up/menu, atau bersihkan pencarian |
 | `+` / `-` | Perbesar / perkecil |
 | `0` atau `F` | Sesuaikan pohon ke layar |
 
@@ -48,9 +52,61 @@ python -m http.server 8000
 
 ---
 
-## ✏️ Mengganti dengan data keluarga sendiri
+## 🗂️ Mengelola data lewat aplikasi
 
-Satu-satunya file yang perlu diedit adalah **`js/data.js`**.
+Ada dua cara mengisi data: **lewat halaman** (paling praktis) atau **mengedit
+`js/data.js`** langsung. Keduanya bisa dipadukan.
+
+### Tambah, ubah, hapus
+
+- **Tambah** — tombol `+ Tambah` di header, atau tekan `N`.
+- **Ubah** — klik kartu anggota, lalu `Ubah Data` di bawah pop-up.
+- **Hapus** — klik kartu anggota, lalu `Hapus Anggota`. Dialog konfirmasi
+  menjelaskan dampaknya lebih dulu (berapa anak dan pasangan yang kehilangan
+  relasi). Anak-anaknya tidak ikut terhapus, hanya kehilangan satu orang tua.
+
+Relasi dijaga otomatis: pasangan selalu dua arah, dan pilihan orang tua tidak
+pernah memuat diri sendiri maupun keturunannya, jadi silsilahnya tidak bisa
+membentuk lingkaran.
+
+### 📌 Di mana datanya tersimpan?
+
+Perubahan disimpan di **localStorage browser** — hanya di komputer dan browser
+itu. Data tidak dikirim ke mana pun, tapi juga tidak otomatis ikut ter-commit
+ke repo.
+
+> **Penting:** begitu ada perubahan tersimpan di browser, isi `js/data.js`
+> tidak lagi dibaca. Mengedit `js/data.js` tidak akan terlihat sampai Anda
+> memilih **Muat Ulang dari js/data.js** di menu ☰.
+
+### Menu ☰ (Kelola Data)
+
+| Menu | Fungsi |
+|---|---|
+| **Ubah Nama Keluarga** | Ganti nama keluarga, tagline, dan teks footer. |
+| **Ekspor Data (JSON)** | Unduh seluruh data sebagai cadangan atau untuk dipindah ke perangkat lain. |
+| **Impor Data (JSON)** | Muat file hasil ekspor. Seluruh data saat ini akan diganti. |
+| **Salin untuk js/data.js** | Menyalin isi lengkap `js/data.js` ke clipboard — inilah cara membuat perubahan **permanen di repo**. |
+| **Muat Ulang dari js/data.js** | Buang perubahan di browser, kembali ke isi `js/data.js`. |
+
+### Membuat perubahan permanen di repo
+
+1. Sunting keluarga Anda lewat halaman sampai puas.
+2. Buka menu ☰ → **Salin untuk js/data.js**.
+3. Tempelkan (paste) ke `js/data.js`, timpa seluruh isinya.
+4. `git add js/data.js && git commit && git push`
+
+Kalau clipboard tidak tersedia (misalnya halaman dibuka lewat `file://`),
+file `data.js` otomatis diunduh sebagai gantinya — tinggal timpakan.
+
+---
+
+## ✏️ Mengedit `js/data.js` langsung
+
+Kalau lebih suka mengetik data dalam jumlah banyak sekaligus, edit
+**`js/data.js`**. Ingat untuk memilih **Muat Ulang dari js/data.js** di menu ☰
+supaya perubahannya terbaca bila sebelumnya sudah pernah menyunting lewat
+halaman.
 
 ### 1. Identitas keluarga
 
@@ -168,25 +224,37 @@ array di `data.js`, lalu daftarkan di `CONFIG.DETAIL_LISTS`:
 ├── css/
 │   └── style.css       # Seluruh gaya + tema terang/gelap
 ├── js/
-│   ├── config.js       # Konstanta layout, warna avatar, label
-│   ├── utils.js        # Format tanggal, hitung umur, avatar SVG
-│   ├── data.js         # ← DATA KELUARGA (satu-satunya file yang perlu diedit)
+│   ├── config.js       # Konstanta layout, warna avatar, label, field
+│   ├── utils.js        # Format tanggal, hitung umur, avatar SVG, resize foto
+│   ├── components.js   # Dialog konfirmasi, peringatan, notifikasi toast
+│   ├── data.js         # ← DATA BENIH keluarga (dipakai saat pertama dibuka)
+│   ├── storage.js      # Sumber data: localStorage, CRUD, ekspor/impor
 │   ├── relations.js    # Indeks & lookup relasi antar anggota
 │   ├── tree.js         # Tata letak pohon, gambar kartu & garis, geser/zoom
 │   ├── detail.js       # Pop-up detail anggota
-│   └── app.js          # Perakitan: header, ringkasan, pencarian, tema
+│   ├── editor.js       # Form tambah/ubah anggota + validasi
+│   └── app.js          # Perakitan: header, ringkasan, pencarian, tema, menu
 └── assets/
     └── photos/         # Simpan foto anggota keluarga di sini
 ```
+
+Alur datanya: `data.js` (benih) → `storage.js` (salinan kerja di localStorage)
+→ `relations.js` (indeks relasi) → `tree.js` & `detail.js` (tampilan).
 
 ---
 
 ## 📝 Catatan
 
 Data yang ada sekarang adalah **contoh** (Keluarga Besar Wijaya, 18 anggota,
-4 generasi) supaya tampilannya bisa langsung dilihat. Ganti isi `js/data.js`
-dengan data keluarga sungguhan sebelum dibagikan.
+4 generasi) supaya tampilannya bisa langsung dilihat. Ganti dengan data
+keluarga sungguhan sebelum dibagikan — lewat halaman, atau dengan mengedit
+`js/data.js`.
 
-Semua data tersimpan di dalam file — tidak ada server, tidak ada database, dan
-tidak ada apa pun yang dikirim ke luar. Preferensi tema disimpan di
-`localStorage` browser.
+Tidak ada server dan tidak ada database. Data keluarga, foto yang diunggah, dan
+preferensi tema semuanya tersimpan di `localStorage` browser; tidak ada apa pun
+yang dikirim ke luar.
+
+Karena localStorage terbatas (umumnya ~5 MB), foto yang diunggah otomatis
+dipotong persegi dan diperkecil ke 400 px. Untuk keluarga besar dengan banyak
+foto, lebih hemat menaruh file foto di `assets/photos/` lalu mengisi kolom
+**path file** di form, bukan mengunggahnya.
