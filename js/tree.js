@@ -384,7 +384,10 @@ const TreeView = (() => {
     if (pointers.size === 1) {
       panStart = { x: e.clientX, y: e.clientY, viewX: view.x, viewY: view.y };
       viewportEl.classList.add("is-panning");
-      viewportEl.setPointerCapture(e.pointerId);
+      // Capture-nya sengaja belum diambil di sini: selama pointer di-capture
+      // viewport, event click ikut diarahkan ke viewport, sehingga listener
+      // di .tree-nodes tidak pernah kebagian dan kartu jadi tidak bisa diklik.
+      // Lihat onPointerMove — capture diambil begitu geseran benar-benar mulai.
     } else if (pointers.size === 2) {
       panStart = null;
       pinchStart = { dist: pointerDistance(), scale: view.scale, center: pointerCenter() };
@@ -411,7 +414,12 @@ const TreeView = (() => {
     if (!panStart) return;
     const dx = e.clientX - panStart.x;
     const dy = e.clientY - panStart.y;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragged = true;
+    if (!dragged && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+      dragged = true;
+      // Geseran sudah pasti, bukan klik — sekarang aman mengambil alih pointer
+      // supaya panning tetap jalan meski kursor keluar dari viewport.
+      try { viewportEl.setPointerCapture(e.pointerId); } catch (_) { /* pointer sudah lepas */ }
+    }
     view.x = panStart.viewX + dx;
     view.y = panStart.viewY + dy;
     applyTransform(false);

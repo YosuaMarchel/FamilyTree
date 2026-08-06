@@ -64,6 +64,10 @@ html[data-theme="dark"] {
 
 html, body { height: 100%; }
 
+/* Jaring pengaman: atribut `hidden` harus selalu menang atas `display` apa pun
+   yang kita set di kelas, supaya elemen tersembunyi tidak ikut menangkap klik. */
+[hidden] { display: none !important; }
+
 body {
   font-family: var(--font-body);
   background-color: var(--bg);
@@ -525,6 +529,11 @@ html[data-theme="dark"] .app-header {
   transition: opacity 0.22s ease;
 }
 .modal-overlay.is-open { opacity: 1; }
+/* `display: flex` di atas berasal dari stylesheet penulis, jadi ia mengalahkan
+   aturan `[hidden] { display: none }` milik browser — tanpa baris ini overlay
+   tetap menutupi layar (inset: 0, z-index: 100) meski opacity-nya 0, dan
+   menelan semua klik di halaman. */
+.modal-overlay[hidden] { display: none; }
 
 .modal {
   position: relative;
