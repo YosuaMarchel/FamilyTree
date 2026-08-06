@@ -14,6 +14,7 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 | Fitur | Keterangan |
 |---|---|
 | **CRUD lengkap** | Tambah, ubah, dan hapus anggota langsung dari halaman — tanpa menyentuh kode. Perubahan tersimpan otomatis di browser. |
+| **Pilihan Domisili & Agama** | Domisili menyediakan 38 provinsi dan 514 kabupaten/kota Indonesia; Agama punya tujuh pilihan bawaan. Keduanya tetap bisa diketik bebas untuk menambah nilai sendiri. |
 | **Pohon otomatis** | Tata letak generasi, pasangan, dan garis keturunan dihitung sendiri dari data — tidak ada koordinat yang perlu diatur manual. |
 | **Pop-up detail** | Klik kartu mana pun untuk melihat foto besar, identitas lengkap, kutipan favorit, hobi, makanan kesukaan, dan fakta seru. |
 | **Lompat antar relasi** | Di dalam pop-up, orang tua/pasangan/anak/saudara bisa diklik untuk langsung berpindah, lengkap dengan tombol kembali. |
@@ -68,6 +69,25 @@ Ada dua cara mengisi data: **lewat halaman** (paling praktis) atau **mengedit
 Relasi dijaga otomatis: pasangan selalu dua arah, dan pilihan orang tua tidak
 pernah memuat diri sendiri maupun keturunannya, jadi silsilahnya tidak bisa
 membentuk lingkaran.
+
+### Kolom Domisili & Agama
+
+Keduanya berupa **daftar pilihan yang tetap bisa diketik bebas** — klik kolomnya
+untuk melihat semua pilihan, atau langsung ketik untuk menyaringnya.
+
+- **Domisili** memuat 38 provinsi dan 514 kabupaten/kota Indonesia sesuai
+  Kepmendagri No. 300.2.2-2138 Tahun 2025, tersimpan offline di `js/wilayah.js`.
+  Labelnya sengaja dipendekkan (`Bandung, Jawa Barat`, bukan `Kota Bandung, …`).
+  Awalan `Kab.` hanya dipakai pada 25 nama yang kalau dipolos akan bentrok
+  dengan kotanya — misalnya `Kab. Bandung` versus `Bandung`.
+- **Agama** berisi tujuh pilihan bawaan dari `CONFIG.RELIGIONS` di
+  `js/config.js`.
+
+Karena bukan dropdown tertutup, nilai apa pun boleh diketik — domisili luar
+negeri seperti `Singapura`, atau agama di luar tujuh bawaan. **Nilai baru yang
+Anda simpan otomatis ikut muncul sebagai pilihan** saat form dibuka lagi, jadi
+daftarnya tumbuh sendiri mengikuti isi keluarga Anda. Nilai yang sudah dipakai
+anggota lain selalu ditaruh paling atas.
 
 ### 📌 Di mana datanya tersimpan?
 
@@ -134,10 +154,10 @@ Setiap anggota adalah satu objek di dalam `FAMILY_DATA`:
   birthDate: "1965-01-22",       // format YYYY-MM-DD (boleh "1965" atau "1965-01")
   deathDate: "",                 // isi bila sudah wafat — kartu ditandai otomatis
   bloodType: "O",
-  domicile: "Jakarta Selatan",
+  domicile: "Jakarta Selatan",   // teks bebas; di form tersedia daftar wilayah
   occupation: "Insinyur Sipil",
   education: "S1 Teknik Sipil",
-  religion: "Katolik",
+  religion: "Katolik",           // teks bebas; di form tersedia daftar agama
 
   parents: ["g1-soekarno", "g1-sri"],   // id ayah & ibu
   spouses: ["g2-ratna"],                // cukup ditulis di satu sisi saja
@@ -224,7 +244,8 @@ array di `data.js`, lalu daftarkan di `CONFIG.DETAIL_LISTS`:
 ├── css/
 │   └── style.css       # Seluruh gaya + tema terang/gelap
 ├── js/
-│   ├── config.js       # Konstanta layout, warna avatar, label, field
+│   ├── config.js       # Konstanta layout, warna avatar, label, field, agama
+│   ├── wilayah.js      # Daftar provinsi & kabupaten/kota (pilihan Domisili)
 │   ├── utils.js        # Format tanggal, hitung umur, avatar SVG, resize foto
 │   ├── components.js   # Dialog konfirmasi, peringatan, notifikasi toast
 │   ├── data.js         # ← DATA BENIH keluarga (dipakai saat pertama dibuka)
