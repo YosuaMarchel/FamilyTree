@@ -46,6 +46,9 @@ const IslandView = (() => {
   let islandOfPerson = new Map();
   let personEls = new Map();
   let roots = [];
+  let topRoots = [];               // akar yang tidak menempel pada rumpun lain
+  let attached = new Map();        // pulau asal -> akar rumpun yang menempel
+  let inlawLinks = [];             // { origin, target, person }
 
   let stageW = 0;
   let stageH = 0;
@@ -189,8 +192,84 @@ const IslandView = (() => {
     });
 
     roots = islands.filter(i => !i.parent);
+
+    // Satu pulau hanya bisa digantung pada satu pulau induk, yaitu induk
+    // anchor-nya. Pasangan yang menikah masuk tetapi orang tuanya ada di
+    // pulau lain dicatat di sini sekali saja — dipakai untuk menentukan
+    // ketinggian, jarak mendatar antar rumpun, dan jembatannya.
+    inlawLinks = [];
+    islands.forEach(isle => {
+      isle.couple.forEach(person => {
+        if (person === isle.unit.anchor || person.parents.length === 0) return;
+        const origin = islandOfPerson.get(person.parents[0]);
+        if (!origin || origin === isle || origin === isle.parent) return;
+        inlawLinks.push({ origin, target: isle, person });
+      });
+    });
+
     measureIslands();
     assignDepth();
+    buildAttachments();
+  }
+
+  /**
+   * Rumpun yang tersambung lewat pernikahan diperlakukan sebagai cabang
+   * tambahan milik pulau asalnya — bukan rumpun terpisah yang ditaruh di
+   * samping seluruh rumpun sebelumnya. Dengan begitu ia mendarat tepat di
+   * sebelah pulau asalnya (jembatannya jadi pendek), dan karena ruangnya
+   * ikut dihitung sebagai bagian dari cabang itu, pulaunya tetap tidak
+   * bertumpuk dengan cabang lain.
+   */
+  function buildAttachments() {
+    attached = new Map();
+    const dependent = new Set();
+    inlawLinks.forEach(({ origin, target }) => {
+      const root = target.cluster;
+      if (!root || !origin.cluster || root === origin.cluster) return;
+      if (dependent.has(root)) return;
+      if (!attached.has(origin)) attached.set(origin, []);
+      attached.get(origin).push(root);
+      dependent.add(root);
+      bawaKeTepi(target);
+    });
+
+    // Kalau semua akar saling menempel (data berkait melingkar), tidak ada
+    // titik mulai — dalam hal itu semuanya diperlakukan sebagai akar biasa.
+    const free = roots.filter(r => !dependent.has(r));
+    topRoots = free.length ? free : roots;
+  }
+
+  /**
+   * Rumpun yang menempel berdiri di sisi kiri pulau asalnya (lihat
+   * branchesOf), jadi jembatannya paling pendek bila pasangan yang menikah
+   * masuk itu berada di ujung KANAN rumpunnya sendiri. Urutan lahir tidak
+   * dipakai di sini: pulau ini — dan tiap pulau induknya sampai akar rumpun —
+   * digeser ke posisi anak bungsu.
+   */
+  function bawaKeTepi(isle) {
+    const guard = new Set();
+    let node = isle;
+    while (node && node.parent && !guard.has(node.id)) {
+      guard.add(node.id);
+      const kids = node.parent.kids;
+      const i = kids.indexOf(node);
+      if (i >= 0 && i !== kids.length - 1) {
+        kids.splice(i, 1);
+        kids.push(node);
+      }
+      node = node.parent;
+    }
+  }
+
+  /**
+   * Cabang satu pulau: rumpun yang menempel lebih dulu, baru anak kandungnya.
+   * Urutannya disengaja — pulau ini dipusatkan di atas anak kandungnya saja,
+   * jadi rumpun yang menempel duduk persis di sisi kirinya, bukan di ujung
+   * kanan seluruh keturunan.
+   */
+  function branchesOf(isle) {
+    const extra = attached.get(isle);
+    return extra ? [...extra, ...isle.kids] : isle.kids;
   }
 
   function measureIslands() {
@@ -220,22 +299,17 @@ const IslandView = (() => {
    * melayang di ketinggian generasi yang sama dengan saudara-saudara
    * kandungnya. Tanpa ini setiap akar selalu mendarat di Generasi I.
    */
-  function clusterOffsets(rootOf, depthOf) {
+  function clusterOffsets(depthOf) {
     const offset = new Map(roots.map(r => [r, 0]));
 
     // Tiap jembatan ke pulau orang tua pasangan menjadi satu syarat jarak
     // minimum antar rumpun: pulau tujuan harus satu jenjang di bawahnya.
     const demands = [];
-    islands.forEach(isle => {
-      isle.couple.forEach(person => {
-        if (person === isle.unit.anchor || person.parents.length === 0) return;
-        const origin = islandOfPerson.get(person.parents[0]);
-        if (!origin || origin === isle) return;
-        const from = rootOf.get(origin);
-        const to = rootOf.get(isle);
-        if (!from || !to || from === to) return;
-        demands.push({ from, to, gap: depthOf.get(origin) + 1 - depthOf.get(isle) });
-      });
+    inlawLinks.forEach(({ origin, target }) => {
+      const from = origin.cluster;
+      const to = target.cluster;
+      if (!from || !to || from === to) return;
+      demands.push({ from, to, gap: depthOf.get(origin) + 1 - depthOf.get(target) });
     });
     if (demands.length === 0) return offset;
 
@@ -256,23 +330,22 @@ const IslandView = (() => {
   }
 
   function assignDepth() {
-    const rootOf = new Map();
     const depthOf = new Map();
     const guard = new Set();
     const walk = (isle, root, depth) => {
       if (guard.has(isle.id)) return;
       guard.add(isle.id);
-      rootOf.set(isle, root);
+      isle.cluster = root;
       depthOf.set(isle, depth);
       isle.kids.forEach(k => walk(k, root, depth + 1));
     };
     roots.forEach(r => walk(r, r, 0));
 
-    const offset = clusterOffsets(rootOf, depthOf);
+    const offset = clusterOffsets(depthOf);
 
     maxDepth = 0;
     islands.forEach(isle => {
-      const depth = (depthOf.get(isle) || 0) + (offset.get(rootOf.get(isle)) || 0);
+      const depth = (depthOf.get(isle) || 0) + (offset.get(isle.cluster) || 0);
       isle.depth = depth;
       if (depth > maxDepth) maxDepth = depth;
     });
@@ -287,14 +360,15 @@ const IslandView = (() => {
     const measure = isle => {
       if (measureGuard.has(isle.id)) { isle._w = 0; return; }
       measureGuard.add(isle.id);
-      isle.kids.forEach(measure);
-      const kidsW = isle.kids.length
-        ? isle.kids.reduce((sum, k) => sum + k._w, 0) + (isle.kids.length - 1) * ISLAND_GAP_X
+      const branches = branchesOf(isle);
+      branches.forEach(measure);
+      const kidsW = branches.length
+        ? branches.reduce((sum, k) => sum + k._w, 0) + (branches.length - 1) * ISLAND_GAP_X
         : 0;
       isle._kidsW = kidsW;
       isle._w = Math.max(isle.w, kidsW);
     };
-    roots.forEach(measure);
+    topRoots.forEach(measure);
 
     // Tinggi tiap jenjang mengikuti pulau tertinggi di generasi itu, supaya
     // pulau besar tidak menabrak generasi di bawahnya.
@@ -315,28 +389,83 @@ const IslandView = (() => {
       placeGuard.add(isle.id);
 
       let cursor = left + (isle._w - isle._kidsW) / 2;
-      isle.kids.forEach(k => {
+      branchesOf(isle).forEach(k => {
         place(k, cursor);
         cursor += k._w + ISLAND_GAP_X;
       });
 
+      // Pulau tetap dipusatkan di atas anak kandungnya saja — rumpun yang
+      // menempel berdiri di jenjangnya sendiri, jadi tidak ikut menarik.
       if (isle.kids.length) {
         const first = isle.kids[0].tier.x + isle.kids[0].w / 2;
         const last = isle.kids[isle.kids.length - 1];
         const lastC = last.tier.x + last.w / 2;
         isle.tier = { x: (first + lastC) / 2 - isle.w / 2, y: rowY[isle.depth] };
+      } else if (branchesOf(isle).length) {
+        // Tidak punya anak-pulau, tetapi ada rumpun menempel di kirinya —
+        // berdiri di ujung kanan petaknya supaya keduanya tidak bertumpuk.
+        isle.tier = { x: left + isle._w - isle.w, y: rowY[isle.depth] };
       } else {
         isle.tier = { x: left + (isle._w - isle.w) / 2, y: rowY[isle.depth] };
       }
     };
 
     let cursor = 0;
-    roots.forEach(r => {
+    topRoots.forEach(r => {
       place(r, cursor);
       cursor += r._w + ISLAND_GAP_X * 2;
     });
 
     islands.forEach(i => { if (!i.tier) i.tier = { x: 0, y: rowY[i.depth] || 0 }; });
+    nudgeAttached();
+  }
+
+  /**
+   * Rumpun yang menempel menempati petak anak pulau asalnya. Kalau pulau itu
+   * tidak punya anak sendiri, petak itu persis di bawah pulau asalnya — dan
+   * karena rumpun yang menempel berdiri di jenjang yang sama, keduanya bisa
+   * bertumpuk. Geser seperlunya: cari celah terdekat yang muat di semua
+   * jenjang yang beririsan, ke kiri maupun ke kanan.
+   */
+  function nudgeAttached() {
+    const groups = new Map();
+    islands.forEach(i => {
+      if (!i.cluster || topRoots.includes(i.cluster)) return;
+      if (!groups.has(i.cluster)) groups.set(i.cluster, []);
+      groups.get(i.cluster).push(i);
+    });
+
+    groups.forEach(group => {
+      const lain = islands.filter(i => !group.includes(i));
+      if (!lain.length) return;
+      const bentrok = (b, o, s) => o.depth === b.depth
+        && b.tier.x + s < o.tier.x + o.w + ISLAND_GAP_X
+        && o.tier.x < b.tier.x + s + b.w + ISLAND_GAP_X;
+
+      // Kandidat: tetap di tempat, atau menempel di kiri/kanan salah satu
+      // pulau yang menghalangi. Dua kandidat terakhir dijamin bebas: di luar
+      // seluruh kepulauan lain. Yang dipakai adalah pergeseran terpendek ke
+      // arah mana pun — rumpun ini duduk di kiri pulau asalnya, jadi
+      // biasanya justru geseran ke kirilah yang paling dekat.
+      const kandidat = [0];
+      group.forEach(b => lain.forEach(o => {
+        if (o.depth !== b.depth) return;
+        kandidat.push(o.tier.x + o.w + ISLAND_GAP_X - b.tier.x);
+        kandidat.push(o.tier.x - ISLAND_GAP_X - b.w - b.tier.x);
+      }));
+      const kiriGrup = Math.min(...group.map(b => b.tier.x));
+      const kananGrup = Math.max(...group.map(b => b.tier.x + b.w));
+      const kiriLain = Math.min(...lain.map(o => o.tier.x));
+      const kananLain = Math.max(...lain.map(o => o.tier.x + o.w));
+      kandidat.push(kiriLain - ISLAND_GAP_X - kananGrup);
+      kandidat.push(kananLain + ISLAND_GAP_X - kiriGrup);
+
+      const geser = kandidat
+        .sort((a, b) => Math.abs(a) - Math.abs(b))
+        .find(s => !group.some(b => lain.some(o => bentrok(b, o, s))));
+
+      if (geser) group.forEach(b => { b.tier.x += geser; });
+    });
   }
 
   /* ═══════════════════════════════════════════════
@@ -352,16 +481,24 @@ const IslandView = (() => {
   function layoutOrganic() {
     // Lebar sudut tiap pulau sebanding dengan jumlah keturunannya, supaya
     // cabang yang ramai tidak berdesakan dengan cabang yang sepi.
+    // Rumpun yang menempel bisa berada di lingkar yang sama dengan pulau
+    // asalnya. Kalau begitu, pulau asalnya ikut mengambil satu petak sudut
+    // di dalam sektornya sendiri — tanpa itu keduanya duduk di sudut yang
+    // sama persis pada lingkar yang sama, lalu bertumpuk.
+    const berbagiLingkar = isle => branchesOf(isle).some(b => b.depth === isle.depth);
+
     const leafGuard = new Set();
     const countLeaves = isle => {
       if (leafGuard.has(isle.id)) return 1;
       leafGuard.add(isle.id);
-      isle._leaves = isle.kids.length
-        ? isle.kids.reduce((sum, k) => sum + countLeaves(k), 0)
+      const branches = branchesOf(isle);
+      isle._leaves = branches.length
+        ? branches.reduce((sum, k) => sum + countLeaves(k), 0)
         : 1;
       return isle._leaves;
     };
-    roots.forEach(countLeaves);
+    topRoots.forEach(countLeaves);
+    islands.forEach(i => { if (!i._leaves) i._leaves = 1; });
 
     // Jari-jari tiap lingkar harus memenuhi dua syarat sekaligus:
     //  (a) keliling lingkar cukup untuk semua pulau di generasi itu, dan
@@ -394,13 +531,104 @@ const IslandView = (() => {
       );
     }
 
+    // Sudut minimum satu cabang beserta SELURUH keturunannya — bukan badan
+    // pulaunya saja. Tanpa memperhitungkan keturunan, sebuah rumpun yang
+    // sedikit anggotanya tetapi bercabang panjang akan kebagian sektor yang
+    // terlalu sempit, lalu cucu-cucunya bertumpuk di lingkar luar.
+    // Nilainya berbanding terbalik dengan jari-jari, jadi cukup dihitung
+    // sekali lalu diskalakan bila lingkarnya nanti dilebarkan.
+    const sudutGuard = new Set();
+    const butuhSudut = isle => {
+      if (sudutGuard.has(isle.id)) return 0;
+      sudutGuard.add(isle.id);
+      const r = radius[isle.depth] || 0;
+      const sendiri = r > 0 ? (isle.w + ISLAND_GAP_X) / (r * ISLAND_ORGANIC_SQUASH) : 0;
+      const cabang = branchesOf(isle);
+      const anak = cabang.reduce((sum, k) => sum + butuhSudut(k), 0);
+      const isi = cabang.some(b => b.depth === isle.depth)
+        ? anak + sendiri              // pulau ini berbagi lingkar dengan cabangnya
+        : Math.max(sendiri, anak);
+      isle._butuh = isi / 0.9;        // spread() menyisakan 10% sebagai celah tepi
+      return isle._butuh;
+    };
+
+    // Kalau seluruh keluarga tidak muat dalam satu putaran penuh, lebarkan
+    // semua lingkar sekaligus. Karena kebutuhan sudut berbanding terbalik
+    // dengan jari-jari, sekali pelebaran sudah pasti cukup.
+    const totalButuh = topRoots.reduce((sum, r) => sum + butuhSudut(r), 0);
+    if (totalButuh > Math.PI * 2) {
+      const lebar = totalButuh / (Math.PI * 2);
+      for (let d = 0; d <= maxDepth; d++) radius[d] *= lebar;
+      islands.forEach(i => { if (i._butuh) i._butuh /= lebar; });
+    }
+    islands.forEach(i => { if (!i._butuh) i._butuh = 0; });
+
+    /**
+     * Membagi satu rentang sudut ke sekumpulan cabang: sebanding jumlah
+     * keturunan, tetapi tidak pernah kurang dari kebutuhan minimum cabang
+     * itu. Cabang yang kesempitan dikunci ke nilai minimumnya lebih dulu,
+     * lalu sisanya dibagi ulang di antara cabang yang masih longgar.
+     */
+    const bagiSudut = (daftar, tersedia) => {
+      const jatah = new Map();
+      let bebas = daftar.slice();
+      let ruang = tersedia;
+
+      for (let pass = 0; pass <= daftar.length && bebas.length; pass++) {
+        const daun = bebas.reduce((sum, k) => sum + k._leaves, 0) || 1;
+        const kunci = bebas.filter(k => ruang * (k._leaves / daun) < k._butuh);
+        if (kunci.length === 0) {
+          bebas.forEach(k => jatah.set(k, ruang * (k._leaves / daun)));
+          bebas = [];
+          break;
+        }
+        kunci.forEach(k => { jatah.set(k, k._butuh); ruang -= k._butuh; });
+        bebas = bebas.filter(k => !kunci.includes(k));
+      }
+
+      // Ruangnya benar-benar tidak cukup — bagi apa adanya daripada menumpuk.
+      const daun = bebas.reduce((sum, k) => sum + k._leaves, 0) || 1;
+      bebas.forEach(k => jatah.set(k, Math.max(0, ruang) * (k._leaves / daun)));
+      return jatah;
+    };
+
     const guard = new Set();
     const spread = (isle, a0, a1) => {
       if (guard.has(isle.id)) return;
       guard.add(isle.id);
 
-      const mid = (a0 + a1) / 2;
+      // Sisakan sedikit celah di tepi sektor agar cabang tidak menempel.
+      const span = (a1 - a0) * 0.9;
+      let a = a0 + ((a1 - a0) - span) / 2;
       const r = radius[isle.depth] || 0;
+
+      // Pulau berdiri di tengah sektornya sendiri, kecuali kalau ia harus
+      // berbagi lingkar dengan rumpun yang menempel — lalu ia mengambil satu
+      // petak selebar badannya sendiri saja. Petak sempit itu penting: kalau
+      // memakai jatah selebar satu cabang, sektor saudara-saudaranya ikut
+      // tergerus dan mereka berdesakan.
+      const petak = berbagiLingkar(isle)
+        ? Math.min(
+          (isle.w + ISLAND_GAP_X) / Math.max(1, r * ISLAND_ORGANIC_SQUASH),
+          span * 0.5,
+        )
+        : 0;
+      const extra = attached.get(isle) || [];
+      const jatah = bagiSudut([...extra, ...isle.kids], span - petak);
+
+      const bagi = k => {
+        spread(k, a, a + jatah.get(k));
+        a += jatah.get(k);
+      };
+
+      // Urutan sudut: rumpun yang menempel — pulau ini — anak kandungnya.
+      // Pulau ini sengaja di tengah: satu sisinya menghadap pasangan yang
+      // menikah masuk, sisi lainnya menghadap keturunannya sendiri.
+      extra.forEach(bagi);
+      let mid = (a0 + a1) / 2;
+      if (petak) { mid = a + petak / 2; a += petak; }
+      isle.kids.forEach(bagi);
+
       const jitterR = ISLAND_RING_GAP * ISLAND_ORGANIC_JITTER;
       const jx = (seeded(isle.seed, 1) - 0.5) * jitterR;
       const jy = (seeded(isle.seed, 2) - 0.5) * jitterR * ISLAND_ORGANIC_SQUASH;
@@ -408,27 +636,16 @@ const IslandView = (() => {
       const cx = Math.cos(mid) * r + jx;
       const cy = Math.sin(mid) * r * ISLAND_ORGANIC_SQUASH + jy;
       isle.organic = { x: cx - isle.w / 2, y: cy - isle.h / 2 };
-
-      // Sisakan sedikit celah di tepi sektor agar cabang tidak menempel.
-      const span = (a1 - a0) * 0.9;
-      const start = a0 + ((a1 - a0) - span) / 2;
-      let a = start;
-      isle.kids.forEach(k => {
-        const share = span * (k._leaves / Math.max(1, isle._leaves));
-        spread(k, a, a + share);
-        a += share;
-      });
     };
 
-    if (roots.length === 1) {
-      spread(roots[0], -Math.PI / 2, Math.PI * 1.5);
+    if (topRoots.length === 1) {
+      spread(topRoots[0], -Math.PI / 2, Math.PI * 1.5);
     } else {
-      const total = roots.reduce((s, r) => s + r._leaves, 0) || 1;
+      const jatah = bagiSudut(topRoots, Math.PI * 2);
       let a = -Math.PI / 2;
-      roots.forEach(r => {
-        const share = (Math.PI * 2) * (r._leaves / total);
-        spread(r, a, a + share);
-        a += share;
+      topRoots.forEach(r => {
+        spread(r, a, a + jatah.get(r));
+        a += jatah.get(r);
       });
     }
 
@@ -676,26 +893,18 @@ const IslandView = (() => {
   }
 
   /**
-   * Satu pulau hanya bisa digantung pada satu pulau induk, yaitu induk
-   * anchor-nya. Pasangan yang menikah masuk tetapi orang tuanya ada di
-   * pulau lain karena itu diberi jembatan tersendiri — lebih tipis dan
-   * tanpa cahaya — supaya dua jalur keluarga yang bertemu lewat
-   * pernikahan tetap terlihat menyambung.
+   * Jembatan ke pulau orang tua pasangan yang menikah masuk — lihat
+   * catatan pada `inlawLinks` di buildIslands. Sengaja lebih tipis dan
+   * tanpa cahaya supaya tidak bersaing dengan jembatan keturunan.
    */
   function renderInlawLinks() {
-    islands.forEach(isle => {
-      isle.couple.forEach(person => {
-        if (person === isle.unit.anchor || person.parents.length === 0) return;
-        const origin = islandOfPerson.get(person.parents[0]);
-        if (!origin || origin === isle || origin === isle.parent) return;
-
-        const path = Utils.svgEl("path", {
-          class: "bridge bridge-inlaw",
-          d: bridgePath(origin, isle),
-        });
-        path.dataset.kin = `${origin.id} ${isle.id}`;
-        linksEl.appendChild(path);
+    inlawLinks.forEach(({ origin, target }) => {
+      const path = Utils.svgEl("path", {
+        class: "bridge bridge-inlaw",
+        d: bridgePath(origin, target),
       });
+      path.dataset.kin = `${origin.id} ${target.id}`;
+      linksEl.appendChild(path);
     });
   }
 

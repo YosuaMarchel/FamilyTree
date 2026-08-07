@@ -19,6 +19,9 @@ const TreeView = (() => {
 
   let units = [];
   let roots = [];
+  let topRoots = [];               // akar yang tidak menempel pada rumpun lain
+  let attached = new Map();        // unit asal -> akar rumpun yang menempel
+  let inlawLinks = [];             // { origin, target, person, index }
   let unitOfPerson = new Map();
   let nodes = [];                  // { person, unit, x, y, el }
   let nodeById = new Map();
@@ -95,6 +98,20 @@ const TreeView = (() => {
     });
 
     roots = units.filter(u => !u.parent);
+
+    // Satu unit hanya bisa digantung pada satu unit orang tua, yaitu orang
+    // tua anchor-nya. Pasangan yang menikah masuk tetapi orang tuanya ada
+    // di dalam pohon dicatat di sini sekali saja — dipakai untuk menentukan
+    // kedalaman, jarak mendatar antar rumpun, dan garis penghubungnya.
+    inlawLinks = [];
+    units.forEach(u => {
+      u.members.forEach((m, index) => {
+        if (m === u.anchor || m.parents.length === 0) return;
+        const origin = unitOfPerson.get(m.parents[0]);
+        if (!origin || origin === u) return;
+        inlawLinks.push({ origin, target: u, person: m, index });
+      });
+    });
   }
 
   /* ═══════════════════════════════════════════════
@@ -115,9 +132,10 @@ const TreeView = (() => {
     guard.add(u.id);
 
     u.selfW = u.members.length * NODE_W + (u.members.length - 1) * SPOUSE_GAP;
-    u.kids.forEach(k => measure(k, guard));
-    u.kidsW = u.kids.length
-      ? u.kids.reduce((sum, k) => sum + k.width, 0) + (u.kids.length - 1) * SIBLING_GAP
+    const branches = branchesOf(u);
+    branches.forEach(k => measure(k, guard));
+    u.kidsW = branches.length
+      ? branches.reduce((sum, k) => sum + k.width, 0) + (branches.length - 1) * SIBLING_GAP
       : 0;
     u.width = Math.max(u.selfW, u.kidsW);
   }
@@ -131,16 +149,23 @@ const TreeView = (() => {
     if (depth > maxDepth) maxDepth = depth;
 
     let cursor = left + (u.width - u.kidsW) / 2;
-    u.kids.forEach(k => {
-      place(k, cursor, depth + 1, guard);
+    branchesOf(u).forEach(k => {
+      // Rumpun yang menempel berdiri di barisnya sendiri, bukan satu baris
+      // di bawah unit ini — barisnya sudah ditentukan clusterOffsets().
+      place(k, cursor, k._startDepth === undefined ? depth + 1 : k._startDepth, guard);
       cursor += k.width + SIBLING_GAP;
     });
 
+    // Pasangan tetap dipusatkan di atas anak kandungnya saja.
     if (u.kids.length) {
       // Pusatkan pasangan tepat di tengah anak pertama & terakhir.
       const first = anchorCenterX(u.kids[0]);
       const last = anchorCenterX(u.kids[u.kids.length - 1]);
       u.x = (first + last) / 2 - u.selfW / 2;
+    } else if (branchesOf(u).length) {
+      // Tidak punya anak kandung, tetapi ada rumpun menempel di kirinya —
+      // berdiri di ujung kanan petaknya supaya keduanya tidak bertumpuk.
+      u.x = left + u.width - u.selfW;
     } else {
       u.x = left + (u.width - u.selfW) / 2;
     }
@@ -155,13 +180,12 @@ const TreeView = (() => {
    * Hasilnya: kedalaman awal untuk tiap unit akar.
    */
   function clusterOffsets() {
-    const rootOf = new Map();
     const depthOf = new Map();
     const walkGuard = new Set();
     const walk = (u, root, depth) => {
       if (walkGuard.has(u.id)) return;
       walkGuard.add(u.id);
-      rootOf.set(u, root);
+      u.cluster = root;
       depthOf.set(u, depth);
       u.kids.forEach(k => walk(k, root, depth + 1));
     };
@@ -170,16 +194,11 @@ const TreeView = (() => {
     // Tiap garis ke orang tua pasangan menjadi satu syarat jarak minimum
     // antar rumpun: unit tujuan harus satu baris di bawah unit asal.
     const demands = [];
-    units.forEach(u => {
-      u.members.forEach(m => {
-        if (m === u.anchor || m.parents.length === 0) return;
-        const origin = unitOfPerson.get(m.parents[0]);
-        if (!origin || origin === u) return;
-        const from = rootOf.get(origin);
-        const to = rootOf.get(u);
-        if (!from || !to || from === to) return;
-        demands.push({ from, to, gap: depthOf.get(origin) + 1 - depthOf.get(u) });
-      });
+    inlawLinks.forEach(({ origin, target }) => {
+      const from = origin.cluster;
+      const to = target.cluster;
+      if (!from || !to || from === to) return;
+      demands.push({ from, to, gap: depthOf.get(origin) + 1 - depthOf.get(target) });
     });
 
     const offset = new Map(roots.map(r => [r, 0]));
@@ -201,23 +220,86 @@ const TreeView = (() => {
     return offset;
   }
 
+  /**
+   * Rumpun yang tersambung lewat pernikahan diperlakukan sebagai cabang
+   * tambahan milik unit asalnya — bukan rumpun terpisah yang ditaruh di
+   * samping seluruh rumpun sebelumnya. Dengan begitu ia mendarat tepat di
+   * sebelah unit asalnya (garis penghubungnya jadi pendek), dan karena
+   * ruangnya ikut dihitung sebagai bagian dari cabang itu, kartunya tetap
+   * tidak bertumpuk dengan cabang lain.
+   */
+  function buildAttachments(offset) {
+    attached = new Map();
+    const dependent = new Set();
+    inlawLinks.forEach(({ origin, target }) => {
+      const root = target.cluster;
+      if (!root || !origin.cluster || root === origin.cluster) return;
+      if (dependent.has(root)) return;
+      root._startDepth = offset.get(root) || 0;
+      if (!attached.has(origin)) attached.set(origin, []);
+      attached.get(origin).push(root);
+      dependent.add(root);
+      bawaKeTepi(target);
+    });
+
+    // Kalau semua akar saling menempel (data berkait melingkar), tidak ada
+    // titik mulai — dalam hal itu semuanya diperlakukan sebagai akar biasa.
+    const free = roots.filter(r => !dependent.has(r));
+    topRoots = free.length ? free : roots;
+  }
+
+  /**
+   * Rumpun yang menempel berdiri di sisi kiri unit asalnya (lihat branchesOf),
+   * jadi jaraknya paling pendek bila pasangan yang menikah masuk itu berdiri
+   * di ujung KANAN rumpunnya sendiri. Urutan lahir tidak dipakai di sini:
+   * unit ini — dan tiap leluhurnya sampai akar rumpun — digeser ke posisi
+   * saudara termuda.
+   */
+  function bawaKeTepi(unit) {
+    const guard = new Set();
+    let node = unit;
+    while (node && node.parent && !guard.has(node.id)) {
+      guard.add(node.id);
+      const kids = node.parent.kids;
+      const i = kids.indexOf(node);
+      if (i >= 0 && i !== kids.length - 1) {
+        kids.splice(i, 1);
+        kids.push(node);
+      }
+      node = node.parent;
+    }
+  }
+
+  /**
+   * Cabang satu unit: rumpun yang menempel lebih dulu, baru anak kandungnya.
+   * Urutannya disengaja — unit ini dipusatkan di atas anak kandungnya saja,
+   * jadi rumpun yang menempel duduk persis di sisi kirinya, bukan di ujung
+   * kanan seluruh keturunan.
+   */
+  function branchesOf(u) {
+    const extra = attached.get(u);
+    return extra ? [...extra, ...u.kids] : u.kids;
+  }
+
   function layout() {
     maxDepth = 0;
-    const measureGuard = new Set();
-    roots.forEach(r => measure(r, measureGuard));
-
     const offset = clusterOffsets();
+    buildAttachments(offset);
+
+    const measureGuard = new Set();
+    topRoots.forEach(r => measure(r, measureGuard));
+
     const placeGuard = new Set();
     let cursor = 0;
-    roots.forEach(r => {
+    topRoots.forEach(r => {
       place(r, cursor, offset.get(r) || 0, placeGuard);
       cursor += r.width + SIBLING_GAP * 2;
     });
 
-    // Normalisasi ke koordinat positif + ruang untuk label generasi.
     const placed = units.filter(u => placeGuard.has(u.id));
     if (placed.length === 0) { stageW = 0; stageH = 0; return; }
 
+    // Normalisasi ke koordinat positif + ruang untuk label generasi.
     const minX = Math.min(...placed.map(u => u.x));
     const maxX = Math.max(...placed.map(u => u.x + u.selfW));
     const maxY = Math.max(...placed.map(u => u.y + NODE_H));
@@ -326,27 +408,19 @@ const TreeView = (() => {
   }
 
   /**
-   * Satu unit hanya bisa digantung pada satu unit orang tua, yaitu orang
-   * tua anchor-nya. Pasangan yang menikah masuk tetapi orang tuanya ada
-   * di dalam pohon karena itu diberi garis penghubung tersendiri, supaya
-   * dua jalur keluarga yang bertemu lewat pernikahan tetap terlihat
-   * menyambung.
+   * Garis dari orang tua ke pasangan yang menikah masuk — lihat catatan
+   * pada `inlawLinks` di buildUnits. Tanpa ini salah satu dari dua jalur
+   * keluarga yang bertemu lewat pernikahan selalu terputus.
    */
   function renderInlawLinks() {
-    units.forEach(u => {
-      u.members.forEach((m, i) => {
-        if (m === u.anchor || m.parents.length === 0) return;
-        const parentUnit = unitOfPerson.get(m.parents[0]);
-        if (!parentUnit || parentUnit === u) return;
-
-        const tx = u.x + i * (NODE_W + SPOUSE_GAP) + NODE_W / 2;
-        const path = Utils.svgEl("path", {
-          class: "link link-inlaw",
-          d: inlawPath(joinX(parentUnit), parentUnit.y + NODE_H, tx, u.y),
-        });
-        path.dataset.kin = `${parentUnit.members.map(p => p.id).join(" ")} ${m.id}`;
-        linesEl.appendChild(path);
+    inlawLinks.forEach(({ origin, target, person, index }) => {
+      const tx = target.x + index * (NODE_W + SPOUSE_GAP) + NODE_W / 2;
+      const path = Utils.svgEl("path", {
+        class: "link link-inlaw",
+        d: inlawPath(joinX(origin), origin.y + NODE_H, tx, target.y),
       });
+      path.dataset.kin = `${origin.members.map(p => p.id).join(" ")} ${person.id}`;
+      linesEl.appendChild(path);
     });
   }
 
