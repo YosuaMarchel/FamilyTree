@@ -345,7 +345,17 @@ html[data-theme="dark"] .view-switch-btn[aria-pressed="true"] {
   to { stroke-dashoffset: -32; }
 }
 
+/* Jembatan ke pulau orang tua pasangan yang menikah masuk — sengaja
+   samar supaya tidak bersaing dengan jembatan garis keturunan. */
+.bridge-inlaw {
+  stroke: var(--bridge);
+  stroke-width: 1.6;
+  stroke-dasharray: 6 10;
+  opacity: 0.38;
+}
+
 .bridge.is-hi { opacity: 1; }
+.bridge-inlaw.is-hi { stroke: var(--bridge-hi); stroke-width: 2.4; }
 .bridge-core.is-hi { stroke: var(--bridge-hi); stroke-width: 3.2; }
 .bridge-glow.is-hi { stroke: var(--bridge-hi); opacity: 0.55; }
 

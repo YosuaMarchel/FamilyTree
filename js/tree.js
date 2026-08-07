@@ -146,15 +146,71 @@ const TreeView = (() => {
     }
   }
 
+  /**
+   * Rumpun yang tidak punya induk di dalam pohon (mis. keluarga besan)
+   * perlu diturunkan sejauh yang dibutuhkan, supaya pasangan yang
+   * menikah masuk berdiri sebaris dengan saudara-saudara kandungnya.
+   * Tanpa ini setiap akar selalu mendarat di Generasi I.
+   *
+   * Hasilnya: kedalaman awal untuk tiap unit akar.
+   */
+  function clusterOffsets() {
+    const rootOf = new Map();
+    const depthOf = new Map();
+    const walkGuard = new Set();
+    const walk = (u, root, depth) => {
+      if (walkGuard.has(u.id)) return;
+      walkGuard.add(u.id);
+      rootOf.set(u, root);
+      depthOf.set(u, depth);
+      u.kids.forEach(k => walk(k, root, depth + 1));
+    };
+    roots.forEach(r => walk(r, r, 0));
+
+    // Tiap garis ke orang tua pasangan menjadi satu syarat jarak minimum
+    // antar rumpun: unit tujuan harus satu baris di bawah unit asal.
+    const demands = [];
+    units.forEach(u => {
+      u.members.forEach(m => {
+        if (m === u.anchor || m.parents.length === 0) return;
+        const origin = unitOfPerson.get(m.parents[0]);
+        if (!origin || origin === u) return;
+        const from = rootOf.get(origin);
+        const to = rootOf.get(u);
+        if (!from || !to || from === to) return;
+        demands.push({ from, to, gap: depthOf.get(origin) + 1 - depthOf.get(u) });
+      });
+    });
+
+    const offset = new Map(roots.map(r => [r, 0]));
+    if (demands.length === 0) return offset;
+
+    // Relaksasi berulang, dibatasi jumlah akar supaya data yang saling
+    // berkait melingkar tidak membuatnya berputar tanpa henti.
+    for (let pass = 0; pass < roots.length; pass++) {
+      let changed = false;
+      demands.forEach(d => {
+        const want = offset.get(d.from) + d.gap;
+        if (want > offset.get(d.to)) { offset.set(d.to, want); changed = true; }
+      });
+      if (!changed) break;
+    }
+
+    const min = Math.min(...offset.values());
+    offset.forEach((v, r) => offset.set(r, v - min));
+    return offset;
+  }
+
   function layout() {
     maxDepth = 0;
     const measureGuard = new Set();
     roots.forEach(r => measure(r, measureGuard));
 
+    const offset = clusterOffsets();
     const placeGuard = new Set();
     let cursor = 0;
     roots.forEach(r => {
-      place(r, cursor, 0, placeGuard);
+      place(r, cursor, offset.get(r) || 0, placeGuard);
       cursor += r.width + SIBLING_GAP * 2;
     });
 
@@ -259,11 +315,48 @@ const TreeView = (() => {
            `L${cx - dir * r},${busY} Q${cx},${busY} ${cx},${busY + r} L${cx},${childY}`;
   }
 
+  /**
+   * Lengkung bebas dari titik orang tua ke kartu pasangan yang menikah
+   * masuk. Bentuknya sengaja beda dari siku garis keturunan biasa karena
+   * jaraknya bisa jauh dan menyilang kanvas.
+   */
+  function inlawPath(px, py, tx, ty) {
+    const bow = Math.max(48, Math.abs(ty - py) * 0.45);
+    return `M${px},${py} C${px},${py + bow} ${tx},${ty - bow} ${tx},${ty}`;
+  }
+
+  /**
+   * Satu unit hanya bisa digantung pada satu unit orang tua, yaitu orang
+   * tua anchor-nya. Pasangan yang menikah masuk tetapi orang tuanya ada
+   * di dalam pohon karena itu diberi garis penghubung tersendiri, supaya
+   * dua jalur keluarga yang bertemu lewat pernikahan tetap terlihat
+   * menyambung.
+   */
+  function renderInlawLinks() {
+    units.forEach(u => {
+      u.members.forEach((m, i) => {
+        if (m === u.anchor || m.parents.length === 0) return;
+        const parentUnit = unitOfPerson.get(m.parents[0]);
+        if (!parentUnit || parentUnit === u) return;
+
+        const tx = u.x + i * (NODE_W + SPOUSE_GAP) + NODE_W / 2;
+        const path = Utils.svgEl("path", {
+          class: "link link-inlaw",
+          d: inlawPath(joinX(parentUnit), parentUnit.y + NODE_H, tx, u.y),
+        });
+        path.dataset.kin = `${parentUnit.members.map(p => p.id).join(" ")} ${m.id}`;
+        linesEl.appendChild(path);
+      });
+    });
+  }
+
   function renderLines() {
     linesEl.textContent = "";
     linesEl.setAttribute("width", stageW);
     linesEl.setAttribute("height", stageH);
     linesEl.setAttribute("viewBox", `0 0 ${stageW} ${stageH}`);
+
+    renderInlawLinks();
 
     units.forEach(u => {
       // ── Garis pernikahan ──

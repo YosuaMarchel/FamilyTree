@@ -214,17 +214,68 @@ const IslandView = (() => {
     });
   }
 
+  /**
+   * Kepulauan yang tidak punya induk sendiri (mis. keluarga besan) perlu
+   * diturunkan sejauh yang dibutuhkan, supaya pasangan yang menikah masuk
+   * melayang di ketinggian generasi yang sama dengan saudara-saudara
+   * kandungnya. Tanpa ini setiap akar selalu mendarat di Generasi I.
+   */
+  function clusterOffsets(rootOf, depthOf) {
+    const offset = new Map(roots.map(r => [r, 0]));
+
+    // Tiap jembatan ke pulau orang tua pasangan menjadi satu syarat jarak
+    // minimum antar rumpun: pulau tujuan harus satu jenjang di bawahnya.
+    const demands = [];
+    islands.forEach(isle => {
+      isle.couple.forEach(person => {
+        if (person === isle.unit.anchor || person.parents.length === 0) return;
+        const origin = islandOfPerson.get(person.parents[0]);
+        if (!origin || origin === isle) return;
+        const from = rootOf.get(origin);
+        const to = rootOf.get(isle);
+        if (!from || !to || from === to) return;
+        demands.push({ from, to, gap: depthOf.get(origin) + 1 - depthOf.get(isle) });
+      });
+    });
+    if (demands.length === 0) return offset;
+
+    // Relaksasi berulang, dibatasi jumlah akar supaya data yang saling
+    // berkait melingkar tidak membuatnya berputar tanpa henti.
+    for (let pass = 0; pass < roots.length; pass++) {
+      let changed = false;
+      demands.forEach(d => {
+        const want = offset.get(d.from) + d.gap;
+        if (want > offset.get(d.to)) { offset.set(d.to, want); changed = true; }
+      });
+      if (!changed) break;
+    }
+
+    const min = Math.min(...offset.values());
+    offset.forEach((v, r) => offset.set(r, v - min));
+    return offset;
+  }
+
   function assignDepth() {
-    maxDepth = 0;
+    const rootOf = new Map();
+    const depthOf = new Map();
     const guard = new Set();
-    const walk = (isle, depth) => {
+    const walk = (isle, root, depth) => {
       if (guard.has(isle.id)) return;
       guard.add(isle.id);
+      rootOf.set(isle, root);
+      depthOf.set(isle, depth);
+      isle.kids.forEach(k => walk(k, root, depth + 1));
+    };
+    roots.forEach(r => walk(r, r, 0));
+
+    const offset = clusterOffsets(rootOf, depthOf);
+
+    maxDepth = 0;
+    islands.forEach(isle => {
+      const depth = (depthOf.get(isle) || 0) + (offset.get(rootOf.get(isle)) || 0);
       isle.depth = depth;
       if (depth > maxDepth) maxDepth = depth;
-      isle.kids.forEach(k => walk(k, depth + 1));
-    };
-    roots.forEach(r => walk(r, 0));
+    });
   }
 
   /* ═══════════════════════════════════════════════
@@ -624,11 +675,37 @@ const IslandView = (() => {
     return `M${ax.toFixed(1)},${ay.toFixed(1)} Q${((ax + bx) / 2).toFixed(1)},${((ay + by) / 2 + sag).toFixed(1)} ${bx.toFixed(1)},${by.toFixed(1)}`;
   }
 
+  /**
+   * Satu pulau hanya bisa digantung pada satu pulau induk, yaitu induk
+   * anchor-nya. Pasangan yang menikah masuk tetapi orang tuanya ada di
+   * pulau lain karena itu diberi jembatan tersendiri — lebih tipis dan
+   * tanpa cahaya — supaya dua jalur keluarga yang bertemu lewat
+   * pernikahan tetap terlihat menyambung.
+   */
+  function renderInlawLinks() {
+    islands.forEach(isle => {
+      isle.couple.forEach(person => {
+        if (person === isle.unit.anchor || person.parents.length === 0) return;
+        const origin = islandOfPerson.get(person.parents[0]);
+        if (!origin || origin === isle || origin === isle.parent) return;
+
+        const path = Utils.svgEl("path", {
+          class: "bridge bridge-inlaw",
+          d: bridgePath(origin, isle),
+        });
+        path.dataset.kin = `${origin.id} ${isle.id}`;
+        linksEl.appendChild(path);
+      });
+    });
+  }
+
   function renderLinks() {
     linksEl.textContent = "";
     linksEl.setAttribute("width", stageW);
     linksEl.setAttribute("height", stageH);
     linksEl.setAttribute("viewBox", `0 0 ${stageW} ${stageH}`);
+
+    renderInlawLinks();
 
     islands.forEach(isle => {
       isle.kids.forEach(kid => {

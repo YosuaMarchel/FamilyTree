@@ -276,7 +276,17 @@ html[data-theme="dark"] .app-header {
   transition: stroke 0.18s, stroke-width 0.18s;
 }
 .link-spouse { stroke: var(--accent); stroke-width: 2.5; }
+
+/* Garis ke orang tua pasangan yang menikah masuk — dibuat samar dan
+   putus-putus supaya tidak bersaing dengan garis keturunan utama. */
+.link-inlaw {
+  stroke-width: 1.8;
+  stroke-dasharray: 7 6;
+  opacity: 0.4;
+}
+
 .link.is-hi { stroke: var(--primary); stroke-width: 3.2; }
+.link-inlaw.is-hi { opacity: 1; stroke-width: 2.4; }
 
 .link-knot {
   fill: var(--accent);
