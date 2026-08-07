@@ -13,6 +13,9 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 
 | Fitur | Keterangan |
 |---|---|
+| **Pulau langit** | Tampilan utama: setiap keluarga jadi satu pulau melayang yang tersambung jembatan cahaya ke pulau orang tuanya. Klik pulau untuk zoom masuk, klik anggotanya untuk detail. |
+| **Dua tata letak pulau** | *Berjenjang* — ketinggian mengikuti generasi, paling mudah dibaca. *Sebaran* — kepulauan menyebar mengelilingi pulau leluhur. Bisa ditukar kapan saja, pulaunya berpindah dengan animasi. |
+| **Dua mode tampilan** | Sakelar 🏝️ Pulau / 🌳 Pohon di header. Pilihannya diingat browser. |
 | **CRUD lengkap** | Tambah, ubah, dan hapus anggota langsung dari halaman — tanpa menyentuh kode. Perubahan tersimpan otomatis di browser. |
 | **Mode baca-saja saat di-deploy** | Kontrol penyuntingan otomatis disembunyikan di luar `localhost`, jadi situs publiknya bersih dan tidak menyesatkan pengunjung. |
 | **Pilihan Domisili & Agama** | Domisili menyediakan 38 provinsi dan 514 kabupaten/kota Indonesia; Agama punya tujuh pilihan bawaan. Keduanya tetap bisa diketik bebas untuk menambah nilai sendiri. |
@@ -37,7 +40,9 @@ build, tanpa dependensi yang perlu di-install. Cukup buka `index.html`.
 | `N` | Tambah anggota baru |
 | `Esc` | Tutup form/pop-up/menu, atau bersihkan pencarian |
 | `+` / `-` | Perbesar / perkecil |
-| `0` atau `F` | Sesuaikan pohon ke layar |
+| `0` atau `F` | Sesuaikan ke layar (di mode pulau: keluar dari pulau yang dibuka) |
+| `V` | Tukar tampilan Pulau ⇄ Pohon |
+| `L` | Tukar tata letak pulau Berjenjang ⇄ Sebaran |
 
 ---
 
@@ -336,7 +341,8 @@ array di `data.js`, lalu daftarkan di `CONFIG.DETAIL_LISTS`:
 ├── netlify.toml        # Pengaturan deploy + header noindex
 ├── robots.txt          # Larangan indeks mesin pencari
 ├── css/
-│   └── style.css       # Seluruh gaya + tema terang/gelap
+│   ├── style.css       # Gaya dasar, pohon klasik, modal + tema terang/gelap
+│   └── islands.css     # Gaya tampilan pulau: langit, pulau, jembatan
 ├── js/
 │   ├── config.js       # Konstanta layout, warna avatar, label, field, agama
 │   ├── wilayah.js      # Daftar provinsi & kabupaten/kota (pilihan Domisili)
@@ -347,6 +353,7 @@ array di `data.js`, lalu daftarkan di `CONFIG.DETAIL_LISTS`:
 │   ├── filesync.js     # Sinkron otomatis: menulis ulang js/data.js
 │   ├── relations.js    # Indeks & lookup relasi antar anggota
 │   ├── tree.js         # Tata letak pohon, gambar kartu & garis, geser/zoom
+│   ├── islands.js      # Tampilan pulau: bangun pulau, 2 tata letak, kamera
 │   ├── detail.js       # Pop-up detail anggota
 │   ├── editor.js       # Form tambah/ubah anggota + validasi
 │   └── app.js          # Perakitan: header, ringkasan, pencarian, tema, menu
@@ -355,7 +362,17 @@ array di `data.js`, lalu daftarkan di `CONFIG.DETAIL_LISTS`:
 ```
 
 Alur datanya: `data.js` (benih) → `storage.js` (salinan kerja di localStorage)
-→ `relations.js` (indeks relasi) → `tree.js` & `detail.js` (tampilan).
+→ `relations.js` (indeks relasi) → `tree.js` / `islands.js` & `detail.js`
+(tampilan). `tree.js` dan `islands.js` punya API yang sama (`refresh`, `fit`,
+`zoomBy`, `focusPerson`, `search`, `setActive`), sehingga `app.js` bisa
+memperlakukan keduanya sebagai "tampilan aktif" yang bisa ditukar.
+
+### Bagaimana sebuah pulau ditentukan
+
+Satu pulau = satu **unit keluarga**: pasangan suami-istri beserta anak-anak
+yang **belum menikah**. Begitu seorang anak menikah, ia berangkat ke pulaunya
+sendiri yang tetap tersambung jembatan ke pulau orang tua. Anggota generasi
+teratas selalu mendapat pulau, walaupun sendirian.
 
 ---
 

@@ -78,7 +78,34 @@ const CONFIG = Object.freeze({
     Object.freeze(["#5B4A82", "#9B8AC4"]),
   ]),
 
+  // ── Tampilan "Pulau Langit" ──────────────────────────────────
+  //    Satu pulau = satu keluarga: pasangan + anak yang belum menikah.
+  //    Anak yang sudah menikah berangkat ke pulaunya sendiri.
+  ISLAND_CARD: 80,          // lebar satu kartu anggota di atas pulau
+  ISLAND_PER_ROW_MAX: 4,    // anggota per baris sebelum menumpuk ke atas
+  ISLAND_MIN_W: 244,
+  ISLAND_MAX_W: 470,
+  ISLAND_RATIO: 0.62,       // tinggi bongkahan batu = lebar × rasio
+  ISLAND_LABEL_H: 52,       // ruang papan nama di bawah pulau
+  ISLAND_GAP_X: 92,         // jarak antar pulau bersaudara (mode berjenjang)
+  ISLAND_GAP_Y: 84,         // jarak antar generasi (mode berjenjang)
+  ISLAND_RING_GAP: 470,     // jarak antar lingkar generasi (mode sebaran)
+  ISLAND_ORGANIC_SQUASH: 0.7, // langit lebih lebar daripada tinggi
+  ISLAND_ORGANIC_JITTER: 0.2, // goyangan posisi agar tidak terlihat melingkar sempurna
+  ISLAND_PADDING: 96,
+  ISLAND_MIN_ZOOM: 0.1,
+  ISLAND_MAX_ZOOM: 1.9,
+  ISLAND_FIT_MAX_ZOOM: 0.8,
+  // Cukup kecil supaya keluarga bertiga generasi muat seluruhnya saat dibuka —
+  // ikhtisar dulu, wajah dan nama menyusul begitu satu pulau dibuka.
+  ISLAND_FIT_MIN_ZOOM: 0.32,
+  ISLAND_FOCUS_ZOOM: 1.25,
+  ISLAND_FOCUS_ROW_H: 96,   // tinggi satu baris kartu anggota saat pulau dibuka
+  ISLAND_PARALLAX: Object.freeze([0.03, 0.07, 0.13]), // lapisan langit terjauh → terdekat
+
   STORAGE_THEME_KEY: "familytree.theme",
   STORAGE_DATA_KEY: "familytree.data.v1",
   STORAGE_SYNC_KEY: "familytree.autosync",
+  STORAGE_VIEW_KEY: "familytree.view",
+  STORAGE_ISLAND_LAYOUT_KEY: "familytree.islandLayout",
 });

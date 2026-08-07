@@ -11,8 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/islands.css">
 </head>
-<body>
+<body data-view="island">
 
   <!-- ═══════════════════════════════════════════════
        HEADER
@@ -27,6 +28,15 @@
     </div>
 
     <div class="header-tools">
+      <div class="view-switch" role="group" aria-label="Mode tampilan">
+        <button class="view-switch-btn" id="btn-view-island" type="button" aria-pressed="true" title="Tampilan pulau langit">
+          <span aria-hidden="true">🏝️</span><span class="view-switch-label">Pulau</span>
+        </button>
+        <button class="view-switch-btn" id="btn-view-tree" type="button" aria-pressed="false" title="Tampilan pohon silsilah">
+          <span aria-hidden="true">🌳</span><span class="view-switch-label">Pohon</span>
+        </button>
+      </div>
+
       <div class="search-wrap">
         <span class="search-icon" aria-hidden="true">🔍</span>
         <input type="search" class="search-input" id="search-input"
@@ -98,22 +108,53 @@
   <div class="stats-strip" id="stats-strip" aria-label="Ringkasan keluarga"></div>
 
   <!-- ═══════════════════════════════════════════════
-       TREE CANVAS
+       KANVAS — dua tampilan berbagi satu area
        ═══════════════════════════════════════════════ -->
-  <main class="tree-viewport" id="tree-viewport" aria-label="Diagram pohon keluarga">
-    <div class="tree-stage" id="tree-stage">
-      <svg class="tree-lines" id="tree-lines" aria-hidden="true" focusable="false"></svg>
-      <div class="tree-nodes" id="tree-nodes"></div>
-    </div>
+  <div class="stage-area" id="stage-area">
+
+    <!-- ── Tampilan pulau langit ── -->
+    <main class="island-viewport" id="island-viewport" aria-label="Peta pulau keluarga">
+      <div class="island-sky" id="island-sky" aria-hidden="true"></div>
+
+      <div class="island-stage" id="island-stage">
+        <svg class="island-links" id="island-links" aria-hidden="true" focusable="false"></svg>
+        <div class="island-nodes" id="island-nodes"></div>
+      </div>
+
+      <div class="isle-empty">
+        <p class="isle-empty-icon" aria-hidden="true">🏝️</p>
+        <h2>Langitnya masih kosong</h2>
+        <p>Tambahkan anggota generasi tertua, lalu pasangan dan anak-anaknya — pulau pertama akan muncul di sini.</p>
+      </div>
+
+      <button class="isle-back" id="btn-isle-back" type="button">
+        <span class="isle-back-arrow" aria-hidden="true">&larr;</span> Kembali ke langit
+      </button>
+
+      <div class="layout-switch" id="layout-switch" role="group" aria-label="Tata letak pulau">
+        <button class="layout-switch-btn" id="btn-layout-tier" type="button" aria-pressed="true"
+                title="Ketinggian mengikuti generasi">Berjenjang</button>
+        <button class="layout-switch-btn" id="btn-layout-organic" type="button" aria-pressed="false"
+                title="Kepulauan menyebar mengelilingi leluhur">Sebaran</button>
+      </div>
+    </main>
+
+    <!-- ── Tampilan pohon klasik ── -->
+    <main class="tree-viewport" id="tree-viewport" aria-label="Diagram pohon keluarga">
+      <div class="tree-stage" id="tree-stage">
+        <svg class="tree-lines" id="tree-lines" aria-hidden="true" focusable="false"></svg>
+        <div class="tree-nodes" id="tree-nodes"></div>
+      </div>
+
+      <div class="tree-empty" id="tree-empty">
+        <p class="tree-empty-icon" aria-hidden="true">🌱</p>
+        <h2>Belum ada anggota keluarga</h2>
+        <p>Mulai dari anggota generasi tertua, lalu tambahkan pasangan dan anak-anaknya.</p>
+        <button class="btn btn-primary edit-only" id="btn-add-first" type="button">Tambah Anggota Pertama</button>
+      </div>
+    </main>
 
     <p class="search-empty" id="search-empty" role="status" hidden>Tidak ada anggota yang cocok.</p>
-
-    <div class="tree-empty" id="tree-empty">
-      <p class="tree-empty-icon" aria-hidden="true">🌱</p>
-      <h2>Belum ada anggota keluarga</h2>
-      <p>Mulai dari anggota generasi tertua, lalu tambahkan pasangan dan anak-anaknya.</p>
-      <button class="btn btn-primary edit-only" id="btn-add-first" type="button">Tambah Anggota Pertama</button>
-    </div>
 
     <div class="zoom-controls" role="group" aria-label="Kontrol tampilan">
       <button class="zoom-btn" id="btn-zoom-in" type="button" aria-label="Perbesar" title="Perbesar">+</button>
@@ -121,8 +162,8 @@
       <button class="zoom-btn" id="btn-zoom-fit" type="button" aria-label="Sesuaikan ke layar" title="Sesuaikan ke layar">⤢</button>
     </div>
 
-    <p class="canvas-hint" id="canvas-hint">Geser untuk menjelajah &middot; scroll untuk zoom &middot; klik kartu untuk detail</p>
-  </main>
+    <p class="canvas-hint" id="canvas-hint">Geser untuk menjelajah &middot; scroll untuk zoom &middot; klik pulau untuk masuk</p>
+  </div>
 
   <!-- ═══════════════════════════════════════════════
        MODAL DETAIL ANGGOTA
@@ -348,6 +389,7 @@
   <script src="js/filesync.js"></script>
   <script src="js/relations.js"></script>
   <script src="js/tree.js"></script>
+  <script src="js/islands.js"></script>
   <script src="js/detail.js"></script>
   <script src="js/editor.js"></script>
   <script src="js/app.js"></script>

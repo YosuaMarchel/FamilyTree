@@ -10,6 +10,57 @@ const App = (() => {
   // disembunyikan dan halaman menjadi baca-saja.
   const canEdit = Utils.isLocalEnvironment();
 
+  /* ── Mode tampilan: pulau langit atau pohon klasik ── */
+
+  let currentView = "island";
+
+  /** Tampilan yang sedang terlihat. Keduanya punya API yang sama. */
+  function activeView() {
+    return currentView === "island" ? IslandView : TreeView;
+  }
+
+  function savedView() {
+    try {
+      const saved = localStorage.getItem(CONFIG.STORAGE_VIEW_KEY);
+      if (saved === "island" || saved === "tree") return saved;
+    } catch { /* localStorage tidak tersedia */ }
+    return "island";
+  }
+
+  function setView(view, persist) {
+    currentView = view === "tree" ? "tree" : "island";
+    document.body.dataset.view = currentView;
+
+    document.getElementById("btn-view-island")
+      .setAttribute("aria-pressed", String(currentView === "island"));
+    document.getElementById("btn-view-tree")
+      .setAttribute("aria-pressed", String(currentView === "tree"));
+
+    document.getElementById("canvas-hint").textContent = currentView === "island"
+      ? "Geser untuk menjelajah · scroll untuk zoom · klik pulau untuk masuk"
+      : "Geser untuk menjelajah · scroll untuk zoom · klik kartu untuk detail";
+
+    if (currentView === "island") {
+      IslandView.activate();
+    } else {
+      IslandView.deactivate();
+      // Ukuran viewport pohon baru sah setelah ia benar-benar tampil.
+      requestAnimationFrame(() => TreeView.fit());
+    }
+
+    if (persist !== false) {
+      try { localStorage.setItem(CONFIG.STORAGE_VIEW_KEY, currentView); } catch { /* diabaikan */ }
+    }
+  }
+
+  function setIslandLayout(mode) {
+    const applied = IslandView.setLayout(mode);
+    document.getElementById("btn-layout-tier")
+      .setAttribute("aria-pressed", String(applied === "tier"));
+    document.getElementById("btn-layout-organic")
+      .setAttribute("aria-pressed", String(applied === "organic"));
+  }
+
   /* ── Tema terang / gelap ─────────────────────── */
 
   function currentTheme() {
@@ -53,6 +104,8 @@ const App = (() => {
     const items = [
       { value: s.total, label: "Anggota" },
       { value: s.generations, label: "Generasi" },
+      // Hanya relevan di tampilan pulau; disembunyikan lewat CSS di mode pohon.
+      { value: IslandView.stats().islands, label: "Pulau", only: "island" },
       { value: s.living, label: "Masih bersama kita" },
       { value: oldest ? String(oldest.birthDate).slice(0, 4) : "—", label: "Sejak tahun" },
     ];
@@ -60,6 +113,7 @@ const App = (() => {
     strip.textContent = "";
     items.forEach(it => {
       const card = Utils.el("div", "stat");
+      if (it.only) card.classList.add(`stat-only-${it.only}`);
       card.append(
         Utils.el("span", "stat-value", String(it.value)),
         Utils.el("span", "stat-label", it.label),
@@ -75,12 +129,18 @@ const App = (() => {
   function applyDataChange(focusId, refit) {
     Relations.build();
     TreeView.refresh({ refit });
+    IslandView.refresh({ refit });
     renderHeader();
     renderStats();
     Detail.refresh();
-    if (searchInput.value.trim()) TreeView.search(searchInput.value);
-    TreeView.setActive(Detail.isOpen() ? Detail.currentId() : null);
-    if (focusId && Relations.has(focusId)) TreeView.focusPerson(focusId);
+    if (searchInput.value.trim()) {
+      TreeView.search(searchInput.value);
+      IslandView.search(searchInput.value);
+    }
+    const activeId = Detail.isOpen() ? Detail.currentId() : null;
+    TreeView.setActive(activeId);
+    IslandView.setActive(activeId);
+    if (focusId && Relations.has(focusId)) activeView().focusPerson(focusId);
   }
 
   /* ── CRUD ────────────────────────────────────── */
@@ -318,20 +378,25 @@ const App = (() => {
 
   function runSearch() {
     const q = searchInput.value;
+    // Kedua tampilan disaring bersamaan supaya sorotannya tetap sinkron
+    // ketika pengguna berpindah mode.
+    IslandView.search(q);
     const matches = TreeView.search(q);
     searchClear.hidden = q.length === 0;
     searchEmpty.hidden = !(q.trim().length > 0 && matches.length === 0);
     if (q.trim().length > 0 && matches.length > 0) {
-      TreeView.focusPerson(matches[0].id, Math.max(0.8, CONFIG.FOCUS_ZOOM));
+      activeView().focusPerson(matches[0].id, Math.max(0.8, CONFIG.FOCUS_ZOOM));
     }
   }
 
   function clearSearch() {
     searchInput.value = "";
     TreeView.search("");
+    IslandView.search("");
     searchClear.hidden = true;
     searchEmpty.hidden = true;
-    TreeView.fit();
+    if (currentView === "island") IslandView.clearFocus(true);
+    else TreeView.fit();
   }
 
   /* ── Pintasan papan ketik ────────────────────── */
@@ -346,6 +411,7 @@ const App = (() => {
       if (!document.getElementById("meta-overlay").hidden) { closeMetaForm(); return; }
       if (Detail.isOpen()) { Detail.close(); return; }
       if (document.getElementById("slide-menu").classList.contains("open")) { toggleMenu(false); return; }
+      if (currentView === "island" && IslandView.focusedIsland()) { IslandView.clearFocus(true); return; }
       if (searchInput.value) clearSearch();
       return;
     }
@@ -359,9 +425,16 @@ const App = (() => {
       searchInput.focus();
       searchInput.select();
     }
-    if (e.key === "+" || e.key === "=") TreeView.zoomBy(CONFIG.ZOOM_STEP);
-    if (e.key === "-") TreeView.zoomBy(-CONFIG.ZOOM_STEP);
-    if (e.key === "0" || e.key.toLowerCase() === "f") TreeView.fit();
+    if (e.key === "+" || e.key === "=") activeView().zoomBy(CONFIG.ZOOM_STEP);
+    if (e.key === "-") activeView().zoomBy(-CONFIG.ZOOM_STEP);
+    if (e.key === "0" || e.key.toLowerCase() === "f") {
+      if (currentView === "island") IslandView.clearFocus(true);
+      else TreeView.fit();
+    }
+    if (e.key.toLowerCase() === "v") setView(currentView === "island" ? "tree" : "island");
+    if (e.key.toLowerCase() === "l" && currentView === "island") {
+      setIslandLayout(IslandView.getLayout() === "tier" ? "organic" : "tier");
+    }
     if (canEdit && e.key.toLowerCase() === "n") { e.preventDefault(); Editor.open(null); }
   }
 
@@ -390,13 +463,15 @@ const App = (() => {
     searchEmpty = document.getElementById("search-empty");
 
     TreeView.init({ onSelect: id => Detail.open(id) });
+    IslandView.init({ onSelect: id => Detail.open(id) });
 
     // Kartu di belakang modal ikut berpindah, jadi saat modal ditutup
     // pengguna langsung melihat orang yang barusan dibuka.
     Detail.init({
       onNavigate: id => {
         TreeView.setActive(id);
-        if (id) TreeView.focusPerson(id);
+        IslandView.setActive(id);
+        if (id) activeView().focusPerson(id);
       },
       onEdit: canEdit ? (id => Editor.open(id)) : null,
       onDelete: canEdit ? deleteMember : null,
@@ -411,9 +486,22 @@ const App = (() => {
     searchClear.addEventListener("click", () => { clearSearch(); searchInput.focus(); });
 
     document.getElementById("btn-theme").addEventListener("click", toggleTheme);
-    document.getElementById("btn-zoom-in").addEventListener("click", () => TreeView.zoomBy(CONFIG.ZOOM_STEP));
-    document.getElementById("btn-zoom-out").addEventListener("click", () => TreeView.zoomBy(-CONFIG.ZOOM_STEP));
-    document.getElementById("btn-zoom-fit").addEventListener("click", () => TreeView.fit());
+    document.getElementById("btn-zoom-in").addEventListener("click", () => activeView().zoomBy(CONFIG.ZOOM_STEP));
+    document.getElementById("btn-zoom-out").addEventListener("click", () => activeView().zoomBy(-CONFIG.ZOOM_STEP));
+    document.getElementById("btn-zoom-fit").addEventListener("click", () => {
+      if (currentView === "island") IslandView.clearFocus(true);
+      else TreeView.fit();
+    });
+
+    // ── Sakelar tampilan & tata letak pulau ──
+    document.getElementById("btn-view-island").addEventListener("click", () => setView("island"));
+    document.getElementById("btn-view-tree").addEventListener("click", () => setView("tree"));
+    document.getElementById("btn-layout-tier").addEventListener("click", () => setIslandLayout("tier"));
+    document.getElementById("btn-layout-organic").addEventListener("click", () => setIslandLayout("organic"));
+    document.getElementById("btn-isle-back").addEventListener("click", () => IslandView.clearFocus(true));
+
+    setIslandLayout(IslandView.getLayout());
+    setView(savedView(), false);
 
     // ── CRUD & menu data (hanya di komputer sendiri) ──
     if (canEdit) {
@@ -451,7 +539,7 @@ const App = (() => {
     // Sembunyikan petunjuk kanvas setelah interaksi pertama.
     const hint = document.getElementById("canvas-hint");
     const hideHint = () => hint.classList.add("is-hidden");
-    document.getElementById("tree-viewport").addEventListener("pointerdown", hideHint, { once: true });
+    document.getElementById("stage-area").addEventListener("pointerdown", hideHint, { once: true });
     setTimeout(hideHint, 8000);
   }
 
