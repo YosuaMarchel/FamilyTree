@@ -263,6 +263,33 @@ const DataStore = (() => {
     return people.length;
   }
 
+  /**
+   * Isi array anggota, ditulis sendiri (bukan JSON.stringify sekaligus)
+   * supaya bisa disisipi penanda generasi. Tanpa penanda ini js/data.js
+   * mentah sulit dibaca: 60 objek beruntun tanpa batas yang terlihat.
+   *
+   * Nomor generasinya diambil dari Relations.generations() — sumber yang
+   * sama dengan label di layar, jadi berkasnya tidak pernah bercerita lain
+   * daripada aplikasinya.
+   */
+  function peopleWithGenerations() {
+    const gen = Relations.generations(people);
+    const potongan = people.map(person => ({
+      gen: gen.has(person.id) ? gen.get(person.id) : null,
+      teks: JSON.stringify(person, null, 2)
+        .split("\n").map(baris => `  ${baris}`).join("\n"),
+    }));
+
+    const isi = potongan.map((p, i) => {
+      const awalGenerasi = i === 0 || p.gen !== potongan[i - 1].gen;
+      if (p.gen === null || !awalGenerasi) return p.teks;
+      const nomor = CONFIG.GEN_ROMAN[p.gen] || String(p.gen + 1);
+      return `${i === 0 ? "" : "\n"}  // ═══ Generasi ${nomor} ═══\n${p.teks}`;
+    }).join(",\n");
+
+    return `[\n${isi}\n]`;
+  }
+
   /** Isi lengkap `js/data.js` — untuk menyimpan perubahan secara permanen. */
   function toDataJs() {
     const header = `"use strict";
@@ -277,7 +304,7 @@ const DataStore = (() => {
 const FAMILY_META = Object.freeze(${JSON.stringify(meta, null, 2)});
 
 const FAMILY_DATA = Object.freeze(`;
-    return `${header}${JSON.stringify(people, null, 2)});\n`;
+    return `${header}${peopleWithGenerations()});\n`;
   }
 
   return Object.freeze({
